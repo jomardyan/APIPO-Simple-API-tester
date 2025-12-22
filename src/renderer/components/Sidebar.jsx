@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import HistoryPanel from './HistoryPanel';
-import CollectionsPanel from './CollectionsPanel';
-import BulkRunner from './BulkRunner';
+import React, { useState } from "react";
+import { History, Folder, Layers } from "lucide-react";
+import HistoryPanel from "./HistoryPanel";
+import CollectionsPanel from "./CollectionsPanel";
+import BulkRunner from "./BulkRunner";
 
 const Sidebar = ({
   history,
@@ -15,53 +16,68 @@ const Sidebar = ({
   onBulkRun,
   onBulkClear,
   onBulkRemove,
-  isBulkRunning
+  isBulkRunning,
 }) => {
-  const [tab, setTab] = useState('history');
+  const [tab, setTab] = useState("history");
 
   return (
     <aside className="sidebar">
       <div className="sidebar-tabs">
         <button
-          className={`ghost ${tab === 'history' ? 'active' : ''}`}
+          className={`ghost ${tab === "history" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('history')}
+          onClick={() => setTab("history")}
+          title="History"
+          style={{ display: "flex", gap: "6px", alignItems: "center" }}
         >
-          History
+          <History size={16} />
+          <span>History</span>
         </button>
         <button
-          className={`ghost ${tab === 'collections' ? 'active' : ''}`}
+          className={`ghost ${tab === "collections" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('collections')}
+          onClick={() => setTab("collections")}
+          title="Collections"
+          style={{ display: "flex", gap: "6px", alignItems: "center" }}
         >
-          Collections
+          <Folder size={16} />
+          <span>Collections</span>
         </button>
         <button
-          className={`ghost ${tab === 'bulk' ? 'active' : ''}`}
+          className={`ghost ${tab === "bulk" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('bulk')}
+          onClick={() => setTab("bulk")}
+          title="Bulk Runner"
+          style={{ display: "flex", gap: "6px", alignItems: "center" }}
         >
-          Bulk
+          <Layers size={16} />
+          <span>Bulk</span>
         </button>
       </div>
-      {tab === 'history' ? (
-        <HistoryPanel history={history} onSelect={onHistorySelect} onClear={onHistoryClear} />
-      ) : tab === 'collections' ? (
-        <CollectionsPanel
-          requestDraft={requestDraft}
-          onLoadRequest={onLoadRequestFromCollection}
-        />
-      ) : (
-        <BulkRunner
-          queue={bulkQueue}
-          results={bulkResults}
-          onAddCurrent={onBulkAddCurrent}
-          onRun={onBulkRun}
-          onClear={onBulkClear}
-          onRemove={onBulkRemove}
-          isRunning={isBulkRunning}
-        />
-      )}
+      <div style={{ flex: 1, overflow: "auto" }}>
+        {tab === "history" ? (
+          <HistoryPanel
+            history={history}
+            onSelect={onHistorySelect}
+            onClear={onHistoryClear}
+          />
+        ) : tab === "collections" ? (
+          <CollectionsPanel
+            requestDraft={requestDraft}
+            onLoadRequest={onLoadRequestFromCollection}
+          />
+        ) : (
+          <BulkRunner
+            queue={bulkQueue}
+            results={bulkResults}
+            onAddCurrent={onBulkAddCurrent}
+            onRun={onBulkRun}
+            onClear={onBulkClear}
+            onRemove={onBulkRemove}
+            isRunning={isBulkRunning}
+          />
+        )}
+      </div>
     </aside>
   );
 };

@@ -1,15 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
+import Editor from "react-simple-code-editor";
+import { highlight, languages } from "prismjs/components/prism-core";
+import "prismjs/components/prism-clike";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-markup";
 
 const statusTone = (status) => {
-  if (!status) return 'muted';
-  if (status >= 200 && status < 300) return 'success';
-  if (status >= 400 && status < 500) return 'warn';
-  return 'danger';
+  if (!status) return "muted";
+  if (status >= 200 && status < 300) return "success";
+  if (status >= 400 && status < 500) return "warn";
+  return "danger";
 };
 
 const pretty = (data) => {
-  if (data === null || data === undefined) return '';
-  if (typeof data === 'string') return data;
+  if (data === null || data === undefined) return "";
+  if (typeof data === "string") return data;
   try {
     return JSON.stringify(data, null, 2);
   } catch (error) {
@@ -18,7 +24,7 @@ const pretty = (data) => {
 };
 
 const ResponseViewer = ({ response }) => {
-  const [tab, setTab] = useState('body');
+  const [tab, setTab] = useState("body");
   const [showRaw, setShowRaw] = useState(false);
   const body = useMemo(() => pretty(response?.data), [response]);
   const headerEntries = useMemo(
@@ -26,7 +32,8 @@ const ResponseViewer = ({ response }) => {
     [response]
   );
   const cookieEntries = useMemo(() => {
-    const raw = response?.headers?.['set-cookie'] || response?.headers?.['Set-Cookie'];
+    const raw =
+      response?.headers?.["set-cookie"] || response?.headers?.["Set-Cookie"];
     if (!raw) return [];
     const list = Array.isArray(raw) ? raw : [raw];
     return list.map((c, idx) => ({ id: `cookie-${idx}`, value: c }));
@@ -38,12 +45,12 @@ const ResponseViewer = ({ response }) => {
   const hasEvents = Boolean(response?.events?.length);
 
   useEffect(() => {
-    setTab('body');
+    setTab("body");
     setShowRaw(false);
   }, [response]);
 
   useEffect(() => {
-    setTab('body');
+    setTab("body");
   }, [response]);
 
   const copyBody = async () => {
@@ -52,7 +59,7 @@ const ResponseViewer = ({ response }) => {
       await navigator.clipboard?.writeText(body);
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Copy failed', error);
+      console.error("Copy failed", error);
     }
   };
 
@@ -63,7 +70,9 @@ const ResponseViewer = ({ response }) => {
           <div className="brand-mark">→</div>
           <div>
             <div className="section-title">Awaiting response</div>
-            <div className="muted">Send a request to see status, headers, and body.</div>
+            <div className="muted">
+              Send a request to see status, headers, and body.
+            </div>
           </div>
         </div>
       </section>
@@ -75,74 +84,76 @@ const ResponseViewer = ({ response }) => {
       <div className="panel-header">
         <div className="pill">Response</div>
         <div className={`pill ${statusTone(response.status)}`}>
-          {response.status ? `${response.status} ${response.statusText}` : 'No status'}
+          {response.status
+            ? `${response.status} ${response.statusText}`
+            : "No status"}
         </div>
         <div className="muted">
-          {response.duration ? `${response.duration} ms` : 'n/a'} ·{' '}
-          {response.size ? `${response.size} chars` : 'size unknown'}
+          {response.duration ? `${response.duration} ms` : "n/a"} ·{" "}
+          {response.size ? `${response.size} chars` : "size unknown"}
         </div>
       </div>
 
       <div className="response-metadata">
         <div>
           <div className="label">Duration</div>
-          <div>{response.duration ? `${response.duration} ms` : '—'}</div>
+          <div>{response.duration ? `${response.duration} ms` : "—"}</div>
         </div>
         <div>
           <div className="label">Status</div>
-          <div>{response.status || 'No status'}</div>
+          <div>{response.status || "No status"}</div>
         </div>
         <div>
           <div className="label">Error</div>
-          <div className={response.error ? 'danger-text' : 'muted'}>
-            {response.error || 'None'}
+          <div className={response.error ? "danger-text" : "muted"}>
+            {response.error || "None"}
           </div>
         </div>
       </div>
 
       <div className="tab-header">
         <button
-          className={`ghost ${tab === 'body' ? 'active' : ''}`}
+          className={`ghost ${tab === "body" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('body')}
+          onClick={() => setTab("body")}
         >
           Body
         </button>
         <button
-          className={`ghost ${tab === 'headers' ? 'active' : ''}`}
+          className={`ghost ${tab === "headers" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('headers')}
+          onClick={() => setTab("headers")}
           disabled={!hasHeaders}
         >
           Headers ({headerEntries.length})
         </button>
         <button
-          className={`ghost ${tab === 'cookies' ? 'active' : ''}`}
+          className={`ghost ${tab === "cookies" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('cookies')}
+          onClick={() => setTab("cookies")}
           disabled={!hasCookies}
         >
           Cookies ({cookieEntries.length})
         </button>
         <button
-          className={`ghost ${tab === 'assertions' ? 'active' : ''}`}
+          className={`ghost ${tab === "assertions" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('assertions')}
+          onClick={() => setTab("assertions")}
           disabled={!hasAssertions}
         >
           Assertions ({response.assertions?.length || 0})
         </button>
         <button
-          className={`ghost ${tab === 'events' ? 'active' : ''}`}
+          className={`ghost ${tab === "events" ? "active" : ""}`}
           type="button"
-          onClick={() => setTab('events')}
+          onClick={() => setTab("events")}
           disabled={!hasEvents}
         >
           Events ({response.events?.length || 0})
         </button>
       </div>
 
-      {tab === 'body' && (
+      {tab === "body" && (
         <div className="section">
           <div className="section-header">
             <div className="section-title">Body</div>
@@ -151,27 +162,47 @@ const ResponseViewer = ({ response }) => {
           <div className="section-header">
             <div className="pill">Size: {response.size || 0} chars</div>
             <div className="row compact">
-              <button className="ghost" type="button" onClick={copyBody} disabled={!body}>
+              <button
+                className="ghost"
+                type="button"
+                onClick={copyBody}
+                disabled={!body}
+              >
                 Copy body
               </button>
               <button
-                className={`ghost ${showRaw ? 'active' : ''}`}
+                className={`ghost ${showRaw ? "active" : ""}`}
                 type="button"
                 onClick={() => setShowRaw((v) => !v)}
               >
-                {showRaw ? 'Formatted' : 'Raw'}
+                {showRaw ? "Formatted" : "Raw"}
               </button>
             </div>
           </div>
-          <pre className="code-block">
-            {showRaw && typeof response.data !== 'string'
-              ? String(response.data)
-              : body || 'No body returned'}
-          </pre>
+          <div className="editor-container">
+            <Editor
+              value={
+                showRaw && typeof response.data !== "string"
+                  ? JSON.stringify(response.data)
+                  : body || "No body returned"
+              }
+              onValueChange={() => {}}
+              highlight={(code) =>
+                highlight(code, showRaw ? languages.clike : languages.json)
+              }
+              padding={10}
+              style={{
+                fontFamily:
+                  '"Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace',
+                fontSize: 13,
+              }}
+              readOnly
+            />
+          </div>
         </div>
       )}
 
-      {tab === 'headers' && (
+      {tab === "headers" && (
         <div className="section">
           <div className="section-header">
             <div className="section-title">Headers</div>
@@ -185,7 +216,9 @@ const ResponseViewer = ({ response }) => {
                 <button
                   className="icon-btn"
                   type="button"
-                  onClick={() => navigator.clipboard?.writeText(`${key}: ${value}`)}
+                  onClick={() =>
+                    navigator.clipboard?.writeText(`${key}: ${value}`)
+                  }
                   title="Copy header"
                 >
                   ⧉
@@ -196,7 +229,7 @@ const ResponseViewer = ({ response }) => {
         </div>
       )}
 
-      {tab === 'assertions' && response.assertions && (
+      {tab === "assertions" && response.assertions && (
         <div className="section">
           <div className="section-header">
             <div className="section-title">Assertions</div>
@@ -205,10 +238,12 @@ const ResponseViewer = ({ response }) => {
             {response.assertions.map((assertion) => (
               <div
                 key={assertion.id}
-                className={`history-item ${assertion.ok ? '' : 'failed-assertion'}`}
+                className={`history-item ${
+                  assertion.ok ? "" : "failed-assertion"
+                }`}
               >
-                <div className={`pill ${assertion.ok ? 'success' : 'danger'}`}>
-                  {assertion.ok ? 'Pass' : 'Fail'}
+                <div className={`pill ${assertion.ok ? "success" : "danger"}`}>
+                  {assertion.ok ? "Pass" : "Fail"}
                 </div>
                 <div className="history-meta">
                   <div className="history-url">{assertion.message}</div>
@@ -219,11 +254,13 @@ const ResponseViewer = ({ response }) => {
         </div>
       )}
 
-      {tab === 'cookies' && (
+      {tab === "cookies" && (
         <div className="section">
           <div className="section-header">
             <div className="section-title">Cookies</div>
-            <div className="muted small">Set-Cookie headers returned from the server</div>
+            <div className="muted small">
+              Set-Cookie headers returned from the server
+            </div>
           </div>
           <div className="history-list">
             {cookieEntries.map((cookie) => (
@@ -245,7 +282,7 @@ const ResponseViewer = ({ response }) => {
         </div>
       )}
 
-      {tab === 'events' && (
+      {tab === "events" && (
         <div className="section">
           <div className="section-header">
             <div className="section-title">Events</div>
@@ -254,10 +291,12 @@ const ResponseViewer = ({ response }) => {
           <div className="history-list">
             {(response.events || []).map((evt) => (
               <div key={evt.id} className="history-item">
-                <div className="pill">{evt.type || 'event'}</div>
+                <div className="pill">{evt.type || "event"}</div>
                 <div className="history-meta">
-                  <div className="history-url">{evt.data || 'empty'}</div>
-                  <div className="muted small">{new Date(evt.time || Date.now()).toLocaleTimeString()}</div>
+                  <div className="history-url">{evt.data || "empty"}</div>
+                  <div className="muted small">
+                    {new Date(evt.time || Date.now()).toLocaleTimeString()}
+                  </div>
                 </div>
               </div>
             ))}

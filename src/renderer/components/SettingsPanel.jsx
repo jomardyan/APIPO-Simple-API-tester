@@ -1,6 +1,7 @@
-import React from 'react';
-import { THEMES } from '#shared/constants';
-import EnvironmentManager from './EnvironmentManager';
+import React from "react";
+import { THEMES } from "#shared/constants";
+import { X } from "lucide-react";
+import EnvironmentManager from "./EnvironmentManager";
 
 const SettingsPanel = ({
   open,
@@ -15,7 +16,7 @@ const SettingsPanel = ({
   onSetActiveEnvironment,
   onClearCookies,
   globalVariables,
-  onGlobalChange
+  onGlobalChange,
 }) => {
   const handleThemeChange = (event) => onChange({ theme: event.target.value });
   const handleTimeoutChange = (event) =>
@@ -25,17 +26,33 @@ const SettingsPanel = ({
   const handleCertChange = (field, value) =>
     onChange({ certConfig: { ...settings.certConfig, [field]: value } });
   const handleSslToggle = (event) =>
-    onChange({ certConfig: { ...settings.certConfig, rejectUnauthorized: !event.target.checked } });
+    onChange({
+      certConfig: {
+        ...settings.certConfig,
+        rejectUnauthorized: !event.target.checked,
+      },
+    });
 
   return (
-    <div className={`settings-drawer ${open ? 'open' : ''}`}>
-      <div className="panel-header">
+    <div className={`settings-drawer ${open ? "open" : ""}`}>
+      <div className="panel-header" style={{ justifyContent: "space-between" }}>
         <div>
           <div className="section-title">Settings</div>
           <div className="muted">Stored locally on this device</div>
         </div>
-        <button className="ghost" type="button" onClick={onClose}>
-          Close
+        <button
+          className="ghost"
+          type="button"
+          onClick={onClose}
+          title="Close settings"
+          style={{
+            padding: "8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <X size={20} />
         </button>
       </div>
 
@@ -63,7 +80,9 @@ const SettingsPanel = ({
             onChange={handleTimeoutChange}
           />
         </label>
-        <div className="muted small">Applied to every request in this session.</div>
+        <div className="muted small">
+          Applied to every request in this session.
+        </div>
       </div>
 
       <div className="section">
@@ -75,7 +94,9 @@ const SettingsPanel = ({
               checked={settings.withCredentials}
               onChange={handleCredentialsToggle}
             />
-            <span className="muted">Include credentials/cookies when CORS permits.</span>
+            <span className="muted">
+              Include credentials/cookies when CORS permits.
+            </span>
           </div>
         </label>
         <div className="muted small">Browser CORS rules still apply.</div>
@@ -91,8 +112,8 @@ const SettingsPanel = ({
           <span className="label">Client certificate path (.crt/.pem)</span>
           <input
             type="text"
-            value={settings.certConfig?.clientCertPath || ''}
-            onChange={(e) => handleCertChange('clientCertPath', e.target.value)}
+            value={settings.certConfig?.clientCertPath || ""}
+            onChange={(e) => handleCertChange("clientCertPath", e.target.value)}
             placeholder="/path/to/cert.pem"
           />
         </label>
@@ -100,8 +121,8 @@ const SettingsPanel = ({
           <span className="label">Client key path (.key)</span>
           <input
             type="text"
-            value={settings.certConfig?.clientKeyPath || ''}
-            onChange={(e) => handleCertChange('clientKeyPath', e.target.value)}
+            value={settings.certConfig?.clientKeyPath || ""}
+            onChange={(e) => handleCertChange("clientKeyPath", e.target.value)}
             placeholder="/path/to/key.pem"
           />
         </label>
@@ -109,8 +130,8 @@ const SettingsPanel = ({
           <span className="label">CA bundle path (optional)</span>
           <input
             type="text"
-            value={settings.certConfig?.caPath || ''}
-            onChange={(e) => handleCertChange('caPath', e.target.value)}
+            value={settings.certConfig?.caPath || ""}
+            onChange={(e) => handleCertChange("caPath", e.target.value)}
             placeholder="/path/to/ca.pem"
           />
         </label>
@@ -122,7 +143,9 @@ const SettingsPanel = ({
               checked={settings.certConfig?.rejectUnauthorized === false}
               onChange={handleSslToggle}
             />
-            <span className="muted">Use only for self-signed development endpoints.</span>
+            <span className="muted">
+              Use only for self-signed development endpoints.
+            </span>
           </div>
         </label>
       </div>
