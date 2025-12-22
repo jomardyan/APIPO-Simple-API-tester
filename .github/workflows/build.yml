@@ -2,6 +2,10 @@ name: build
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   package:
@@ -22,17 +26,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run tests
+        run: npm test
+        working-directory: tests
+
       - name: Build app
         run: npm run build
 
-      - name: Run tests
-        run: npm test
+      - name: Package app (Linux)
+        if: runner.os == 'Linux'
+        run: npm run package -- --linux
 
-      - name: Package app
-        run: npx electron-builder --publish never
+      - name: Package app (macOS)
+        if: runner.os == 'macOS'
+        run: npm run package -- --mac
+
+      - name: Package app (Windows)
+        if: runner.os == 'Windows'
+        run: npm run package -- --win
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ runner.os }}
-          path: release/**
+          name: release-${{ runner.os }}-${{ github.sha }}
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.dmg
+            release/*.exe
+          if-no-files-found: error

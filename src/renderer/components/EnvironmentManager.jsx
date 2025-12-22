@@ -47,7 +47,8 @@ const EnvironmentManager = ({
   };
 
   return (
-    <div className="section">
+    <>
+      <div className="section">
       <div className="section-header">
         <div>
           <div className="section-title">Global Variables</div>
@@ -95,7 +96,7 @@ const EnvironmentManager = ({
       </div>
     </div>
 
-    <div className="section">
+      <div className="section">
       <div className="section-header">
         <div>
           <div className="section-title">Environments</div>
@@ -166,7 +167,8 @@ const EnvironmentManager = ({
           </div>
         ))}
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

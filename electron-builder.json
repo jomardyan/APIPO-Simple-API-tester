@@ -9,18 +9,81 @@
     "output": "release",
     "buildResources": "assets"
   },
+  "compression": "normal",
+  "publish": null,
   "mac": {
     "category": "public.app-category.developer-tools",
-    "target": "dmg"
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "darkModeSupport": true,
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": null,
+    "entitlementsInherit": null
+  },
+  "dmg": {
+    "contents": [
+      {
+        "x": 130,
+        "y": 220
+      },
+      {
+        "x": 410,
+        "y": 220,
+        "type": "link",
+        "path": "/Applications"
+      }
+    ]
   },
   "win": {
-    "target": "nsis"
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "${productName}-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false
   },
   "linux": {
     "target": [
-      "AppImage",
-      "deb"
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      {
+        "target": "deb",
+        "arch": ["x64"]
+      }
     ],
-    "category": "Utility"
-  }
+    "category": "Development",
+    "maintainer": "Quick API Client Team",
+    "description": "Quick API Client - A cross-platform API testing tool",
+    "desktop": {
+      "Name": "Quick API Client",
+      "Type": "Application",
+      "Categories": "Development;Utility;"
+    }
+  },
+  "fileAssociations": [
+    {
+      "ext": "json",
+      "name": "API Request Collection",
+      "description": "Quick API Client Collection File",
+      "role": "Editor"
+    }
+  ]
 }

@@ -14,7 +14,31 @@ npm run dev        # starts Vite + esbuild watchers + Electron with live reload
 ```bash
 npm run build      # bundle renderer + main/preload
 npm run package    # create platform-specific installers via electron-builder
+npm test           # run unit tests with Node.js test runner
+npm run test:watch # run tests in watch mode
+npm run test:coverage # run tests with coverage report
 ```
+
+## Testing
+
+Tests are written using Node.js's built-in test runner and are visible in VS Code's Test Explorer:
+
+- **Run tests**: Click the flask icon in the sidebar or use `Ctrl/Cmd+Shift+P` → "Test: Run All Tests"
+- **Debug tests**: Set breakpoints and click "Debug Test" in the gutter
+- **Watch mode**: Use the "Watch Tests" task from the command palette
+- **Coverage**: Run `npm run test:coverage` to see code coverage
+
+Test files are located in the `tests/` directory and follow the `*.test.js` naming pattern.
+
+## Distribution
+
+The app builds for all major platforms:
+
+- **Linux**: AppImage and .deb packages
+- **macOS**: Universal .dmg (Intel + Apple Silicon)
+- **Windows**: NSIS installer and portable .exe
+
+Use GitHub Actions workflow (`.github/workflows/build.yml`) to build for all platforms automatically.
 
 ## Project Layout
 

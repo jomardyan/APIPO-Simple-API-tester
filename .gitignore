@@ -1,7 +1,40 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
 release
+*.AppImage
+*.deb
+*.dmg
+*.exe
+*.msi
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+logs
+*.log
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage
+.nyc_output
