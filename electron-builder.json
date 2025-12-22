@@ -1,16 +1,18 @@
 {
   "appId": "com.quickapiclient.desktop",
   "productName": "Quick API Client Desktop",
-  "files": [
-    "dist/**/*",
-    "package.json"
-  ],
+  "files": ["dist/**/*", "package.json"],
   "directories": {
     "output": "release",
     "buildResources": "assets"
   },
   "compression": "normal",
-  "publish": null,
+  "publish": {
+    "provider": "github",
+    "owner": "jomardyan",
+    "repo": "APIPO-Simple-API-tester",
+    "releaseType": "release"
+  },
   "mac": {
     "category": "public.app-category.developer-tools",
     "target": [

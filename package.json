@@ -22,6 +22,7 @@
     "build:main": "node build/esbuild.config.js",
     "start": "electron .",
     "package": "npm run build && electron-builder",
+    "release": "npm run build && electron-builder --publish always",
     "lint": "echo \"Add lint rules\"",
     "test": "node test-runner.js",
     "test:watch": "node test-runner.js --watch",
