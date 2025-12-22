@@ -39,18 +39,21 @@ jobs:
         run: npm run package -- --linux --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 60
 
       - name: Package and publish (macOS)
         if: runner.os == 'macOS'
         run: npm run package -- --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 60
 
       - name: Package and publish (Windows)
         if: runner.os == 'Windows'
         run: npm run package -- --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 60
 
       - name: Upload artifacts to workflow
         uses: actions/upload-artifact@v4

@@ -11,7 +11,9 @@
     "provider": "github",
     "owner": "jomardyan",
     "repo": "APIPO-Simple-API-tester",
-    "releaseType": "release"
+    "releaseType": "release",
+    "timeout": 600000,
+    "publishAutoUpdate": true
   },
   "mac": {
     "category": "public.app-category.developer-tools",
