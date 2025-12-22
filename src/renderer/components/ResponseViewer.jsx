@@ -35,6 +35,7 @@ const ResponseViewer = ({ response }) => {
   const hasAssertions = Boolean(response?.assertions?.length);
   const hasHeaders = headerEntries.length > 0;
   const hasCookies = cookieEntries.length > 0;
+  const hasEvents = Boolean(response?.events?.length);
 
   useEffect(() => {
     setTab('body');
@@ -130,6 +131,14 @@ const ResponseViewer = ({ response }) => {
           disabled={!hasAssertions}
         >
           Assertions ({response.assertions?.length || 0})
+        </button>
+        <button
+          className={`ghost ${tab === 'events' ? 'active' : ''}`}
+          type="button"
+          onClick={() => setTab('events')}
+          disabled={!hasEvents}
+        >
+          Events ({response.events?.length || 0})
         </button>
       </div>
 
@@ -230,6 +239,26 @@ const ResponseViewer = ({ response }) => {
                 >
                   ⧉
                 </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'events' && (
+        <div className="section">
+          <div className="section-header">
+            <div className="section-title">Events</div>
+            <div className="muted small">WebSocket / SSE event stream</div>
+          </div>
+          <div className="history-list">
+            {(response.events || []).map((evt) => (
+              <div key={evt.id} className="history-item">
+                <div className="pill">{evt.type || 'event'}</div>
+                <div className="history-meta">
+                  <div className="history-url">{evt.data || 'empty'}</div>
+                  <div className="muted small">{new Date(evt.time || Date.now()).toLocaleTimeString()}</div>
+                </div>
               </div>
             ))}
           </div>

@@ -10,7 +10,9 @@ const persistConfig = {
     settings: state.settings,
     collections: state.collections,
     environments: state.environments,
-    activeEnvironmentId: state.activeEnvironmentId
+    globalVariables: state.globalVariables,
+    activeEnvironmentId: state.activeEnvironmentId,
+    cookieJar: state.cookieJar
   })
 };
 
@@ -29,11 +31,23 @@ export const useAppStore = create(
           ]
         }
       ],
+      globalVariables: [
+        { id: randomId(), key: 'ORG', value: 'acme' },
+        { id: randomId(), key: 'REGION', value: 'us-east-1' }
+      ],
       activeEnvironmentId: 'env-local',
       settings: {
         theme: 'system',
-        timeout: 15000
+        timeout: 15000,
+        withCredentials: true,
+        certConfig: {
+          clientCertPath: '',
+          clientKeyPath: '',
+          caPath: '',
+          rejectUnauthorized: true
+        }
       },
+      cookieJar: {},
       addHistory: (entry) => {
         const next = [entry, ...get().history].slice(0, 50);
         set({ history: next });
@@ -43,6 +57,22 @@ export const useAppStore = create(
         set((state) => ({
           settings: { ...state.settings, ...patch }
         })),
+      setGlobalVariables: (variables) => {
+        if (!Array.isArray(variables)) return;
+        set({ globalVariables: variables });
+      },
+      setCookieJar: (jar) => set({ cookieJar: jar || {} }),
+      upsertCookies: (host, cookies) => {
+        if (!host || !cookies) return;
+        set((state) => {
+          const next = { ...state.cookieJar };
+          const current = next[host] || {};
+          const merged = { ...current, ...cookies };
+          next[host] = merged;
+          return { cookieJar: next };
+        });
+      },
+      clearCookies: () => set({ cookieJar: {} }),
       resetRequestDraft: () => DEFAULT_REQUEST,
       addCollection: (name, id) => {
         if (!name) return;

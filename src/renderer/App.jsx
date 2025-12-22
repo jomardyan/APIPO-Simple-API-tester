@@ -14,6 +14,7 @@ const createRequestDraft = () => ({
   ...DEFAULT_REQUEST,
   headers: [{ id: randomId(), key: '', value: '' }],
   params: [{ id: randomId(), key: '', value: '' }],
+  urlEncoded: [{ id: randomId(), key: '', value: '' }],
   auth: { ...DEFAULT_REQUEST.auth }
 });
 
@@ -67,7 +68,12 @@ const App = () => {
     updateSettings,
     environments,
     activeEnvironmentId,
-    setActiveEnvironment
+    setActiveEnvironment,
+    cookieJar,
+    upsertCookies,
+    clearCookies,
+    globalVariables,
+    setGlobalVariables
   } = useAppStore();
   const [requestDraft, setRequestDraft] = useState(createRequestDraft());
   const [responseState, setResponseState] = useState(null);
@@ -79,6 +85,8 @@ const App = () => {
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [abortController, setAbortController] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [isBooting, setIsBooting] = useState(true);
+  const [runtimeIssue, setRuntimeIssue] = useState(null);
 
   useEffect(() => {
     applyTheme(settings.theme);
@@ -94,35 +102,88 @@ const App = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setIsBooting(false), 720);
+    return () => clearTimeout(timer);
+  }, []);
+
   const activeEnv = useMemo(
     () => environments.find((env) => env.id === activeEnvironmentId),
     [activeEnvironmentId, environments]
   );
 
   const envMap = useMemo(() => toEnvMap(activeEnv), [activeEnv]);
+  const globalMap = useMemo(
+    () => (globalVariables || []).reduce((acc, variable) => {
+      if (variable.key) acc[variable.key] = variable.value;
+      return acc;
+    }, {}),
+    [globalVariables]
+  );
+
+  const mergedMap = useMemo(() => ({ ...globalMap, ...envMap }), [globalMap, envMap]);
 
   const resolveDraftWithEnv = (draft) => {
     const resolved = cloneRequest(draft);
-    resolved.url = substituteTemplate(resolved.url, envMap);
+    resolved.url = substituteTemplate(resolved.url, mergedMap);
     resolved.headers = resolved.headers.map((h) => ({
       ...h,
-      key: substituteTemplate(h.key, envMap),
-      value: substituteTemplate(h.value, envMap)
+      key: substituteTemplate(h.key, mergedMap),
+      value: substituteTemplate(h.value, mergedMap)
     }));
     resolved.params = resolved.params.map((p) => ({
       ...p,
-      key: substituteTemplate(p.key, envMap),
-      value: substituteTemplate(p.value, envMap)
+      key: substituteTemplate(p.key, mergedMap),
+      value: substituteTemplate(p.value, mergedMap)
     }));
     if (typeof resolved.body === 'string') {
-      resolved.body = substituteTemplate(resolved.body, envMap);
+      resolved.body = substituteTemplate(resolved.body, mergedMap);
     }
+    resolved.urlEncoded = (resolved.urlEncoded || []).map((p) => ({
+      ...p,
+      key: substituteTemplate(p.key, mergedMap),
+      value: substituteTemplate(p.value, mergedMap)
+    }));
+    resolved.graphqlQuery = substituteTemplate(resolved.graphqlQuery, mergedMap);
+    resolved.graphqlVariables = substituteTemplate(resolved.graphqlVariables, mergedMap);
     return resolved;
   };
 
 
   const addLog = (type, message) =>
     setLogs((prev) => [{ id: randomId(), type, message, timestamp: Date.now() }, ...prev].slice(0, 200));
+
+  const hostnameFromUrl = (raw) => {
+    try {
+      return new URL(raw).hostname;
+    } catch (_error) {
+      return '';
+    }
+  };
+
+  const parseSetCookies = (value) => {
+    const list = Array.isArray(value) ? value : [value];
+    return list.reduce((acc, cookieStr) => {
+      if (!cookieStr) return acc;
+      const [pair] = cookieStr.split(';');
+      const [name, ...rest] = pair.split('=');
+      if (!name) return acc;
+      acc[name.trim()] = rest.join('=').trim();
+      return acc;
+    }, {});
+  };
+
+  const buildCookieHeader = (host) => {
+    if (!host || !cookieJar?.[host]) return '';
+    const entries = Object.entries(cookieJar[host]);
+    return entries.map(([k, v]) => `${k}=${v}`).join('; ');
+  };
+
+  const notifyRuntimeIssue = (message) => {
+    if (!message) return;
+    addLog('ERR', message);
+    setRuntimeIssue({ id: randomId(), message, at: Date.now() });
+  };
 
   const httpClient = useMemo(() => {
     const client = axios.create();
@@ -245,11 +306,7 @@ const App = () => {
     return { headers, params };
   };
 
-  const sendRequest = async (
-    draft,
-    { setResponse = true, storeHistory = true, signal } = {}
-  ) => {
-    const resolvedDraft = resolveDraftWithEnv(draft);
+  const sendHttp = async (resolvedDraft, { setResponse = true, storeHistory = true, signal } = {}) => {
     const started = performance.now();
     const headerMap = parseHeaders(resolvedDraft.headers);
     const paramList = parseParams(resolvedDraft.params);
@@ -261,12 +318,34 @@ const App = () => {
       formData: resolvedDraft.formData
     });
     const targetUrl = buildUrlWithParams(resolvedDraft.url, scripted.params);
+    const host = hostnameFromUrl(targetUrl);
+    const cookieHeader = buildCookieHeader(host);
+    if (cookieHeader && !scripted.headers.Cookie) {
+      scripted.headers.Cookie = cookieHeader;
+    }
+
     let data = undefined;
-    if (!['GET', 'HEAD'].includes(resolvedDraft.method)) {
+    let methodToUse = resolvedDraft.method;
+
+    if (resolvedDraft.protocol === 'graphql') {
+      methodToUse = 'POST';
+      scripted.headers['Content-Type'] = 'application/json';
+      try {
+        const variables = JSON.parse(resolvedDraft.graphqlVariables || '{}');
+        data = { query: resolvedDraft.graphqlQuery, variables };
+      } catch (error) {
+        data = { query: resolvedDraft.graphqlQuery, variables: resolvedDraft.graphqlVariables };
+      }
+    } else if (!['GET', 'HEAD'].includes(resolvedDraft.method)) {
       if (resolvedDraft.bodyMode === 'formData') {
         const fd = new FormData();
         scripted.formData?.forEach?.((row) => row.key && fd.append(row.key, row.value));
         data = fd;
+      } else if (resolvedDraft.bodyMode === 'urlencoded') {
+        const paramsBody = new URLSearchParams();
+        (resolvedDraft.urlEncoded || []).forEach((row) => row.key && paramsBody.append(row.key, row.value));
+        data = paramsBody;
+        scripted.headers['Content-Type'] = 'application/x-www-form-urlencoded';
       } else {
         const bodyInput =
           typeof scripted.body === 'string'
@@ -290,14 +369,26 @@ const App = () => {
 
     let response;
     try {
-      const res = await httpClient({
-        method: resolvedDraft.method,
-        url: targetUrl,
-        headers: scripted.headers,
-        data,
-        timeout: settings.timeout,
-        signal
-      });
+      const runViaMain = async () =>
+        window.quickApi?.sendRequest?.({
+          url: targetUrl,
+          method: methodToUse,
+          headers: scripted.headers,
+          data,
+          timeout: settings.timeout,
+          certConfig: settings.certConfig
+        });
+
+      const res = (await runViaMain()) ??
+        (await httpClient({
+          method: methodToUse,
+          url: targetUrl,
+          headers: scripted.headers,
+          data,
+          timeout: settings.timeout,
+          signal,
+          withCredentials: settings.withCredentials
+        }));
 
       const duration = Math.round(performance.now() - started);
       response = {
@@ -306,10 +397,15 @@ const App = () => {
         data: res.data,
         headers: res.headers,
         duration,
-        error: null,
+        error: res.error || null,
         size: prettifyData(res.data).length,
         assertions: runAssertions(resolvedDraft.testScript, res)
       };
+
+      const setCookieHeader = res.headers?.['set-cookie'] || res.headers?.['Set-Cookie'];
+      if (setCookieHeader && host) {
+        upsertCookies(host, parseSetCookies(setCookieHeader));
+      }
     } catch (error) {
       if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
         return { aborted: true };
@@ -341,12 +437,144 @@ const App = () => {
       addHistory({
         id: randomId(),
         timestamp: Date.now(),
-        request: cloneRequest(draft),
-        response
+        request: cloneRequest(resolvedDraft),
+        response,
+        environmentId: activeEnvironmentId,
+        environmentName: activeEnv?.name,
+        protocol: resolvedDraft.protocol
       });
     }
 
     return response;
+  };
+
+  const sendSse = (resolvedDraft, { setResponse = true, storeHistory = true } = {}) =>
+    new Promise((resolve) => {
+      const events = [];
+      const started = performance.now();
+      let settled = false;
+      try {
+        const source = new EventSource(resolvedDraft.url);
+        const finish = (payload) => {
+          if (settled) return;
+          settled = true;
+          source.close();
+          const response = {
+            status: null,
+            statusText: 'SSE stream',
+            data: 'Event stream',
+            headers: {},
+            duration: Math.round(performance.now() - started),
+            error: payload?.error || null,
+            size: JSON.stringify(events).length,
+            assertions: runAssertions(resolvedDraft.testScript, payload),
+            events
+          };
+          if (setResponse) setResponseState(response);
+          if (storeHistory) {
+            addHistory({ id: randomId(), timestamp: Date.now(), request: cloneRequest(resolvedDraft), response });
+          }
+          resolve(response);
+        };
+
+        const timer = setTimeout(() => finish(), 6000);
+        source.onmessage = (event) => {
+          events.push({ id: randomId(), type: event.type || 'message', data: event.data, time: Date.now() });
+          if (events.length >= 8) {
+            clearTimeout(timer);
+            finish();
+          }
+        };
+        source.onerror = () => {
+          clearTimeout(timer);
+          finish({ error: 'SSE error' });
+        };
+      } catch (error) {
+        const response = {
+          status: null,
+          statusText: 'SSE error',
+          data: error.message,
+          headers: {},
+          duration: Math.round(performance.now() - started),
+          error: error.message,
+          size: 0,
+          assertions: runAssertions(resolvedDraft.testScript, error),
+          events
+        };
+        if (setResponse) setResponseState(response);
+        if (storeHistory) addHistory({ id: randomId(), timestamp: Date.now(), request: cloneRequest(resolvedDraft), response });
+        resolve(response);
+      }
+    });
+
+  const sendWebSocket = (resolvedDraft, { setResponse = true, storeHistory = true } = {}) =>
+    new Promise((resolve) => {
+      const started = performance.now();
+      const events = [];
+      try {
+        const ws = new WebSocket(resolvedDraft.url);
+        const finish = (payload) => {
+          const response = {
+            status: null,
+            statusText: 'WebSocket',
+            data: 'WebSocket session',
+            headers: {},
+            duration: Math.round(performance.now() - started),
+            error: payload?.error || null,
+            size: JSON.stringify(events).length,
+            assertions: runAssertions(resolvedDraft.testScript, payload),
+            events
+          };
+          if (setResponse) setResponseState(response);
+          if (storeHistory) addHistory({ id: randomId(), timestamp: Date.now(), request: cloneRequest(resolvedDraft), response });
+          resolve(response);
+        };
+
+        const timer = setTimeout(() => {
+          ws.close();
+          finish();
+        }, 6000);
+
+        ws.onmessage = (event) => {
+          events.push({ id: randomId(), type: 'message', data: event.data, time: Date.now() });
+        };
+
+        ws.onerror = (event) => {
+          clearTimeout(timer);
+          finish({ error: event?.message || 'WebSocket error' });
+        };
+
+        ws.onclose = () => {
+          clearTimeout(timer);
+          finish();
+        };
+      } catch (error) {
+        const response = {
+          status: null,
+          statusText: 'WebSocket error',
+          data: error.message,
+          headers: {},
+          duration: Math.round(performance.now() - started),
+          error: error.message,
+          size: 0,
+          assertions: runAssertions(resolvedDraft.testScript, error),
+          events
+        };
+        if (setResponse) setResponseState(response);
+        if (storeHistory) addHistory({ id: randomId(), timestamp: Date.now(), request: cloneRequest(resolvedDraft), response });
+        resolve(response);
+      }
+    });
+
+  const sendRequest = async (draft, options = {}) => {
+    const resolvedDraft = resolveDraftWithEnv(draft);
+    if (resolvedDraft.protocol === 'websocket') {
+      return sendWebSocket(resolvedDraft, options);
+    }
+    if (resolvedDraft.protocol === 'sse') {
+      return sendSse(resolvedDraft, options);
+    }
+    return sendHttp(resolvedDraft, options);
   };
 
   const handleSend = async (draft) => {
@@ -433,6 +661,12 @@ const App = () => {
       if (event === 'add-to-bulk') {
         handleBulkAddCurrent();
       }
+      if (event === 'new-request') {
+        handleResetRequest();
+      }
+      if (event === 'open-settings') {
+        setShowSettings(true);
+      }
     });
 
     return () => unsubscribe?.();
@@ -460,6 +694,22 @@ const App = () => {
     return () => window.removeEventListener('keydown', handleKey);
   }, [requestDraft, isSending, showSettings]);
 
+  useEffect(() => {
+    const off = window.quickApi?.onAppError?.((message) => notifyRuntimeIssue(message || 'Unexpected app error'));
+    const handleError = (event) => notifyRuntimeIssue(event?.message || 'Renderer error');
+    const handleRejection = (event) =>
+      notifyRuntimeIssue(event?.reason?.message || event?.reason || 'Unhandled promise rejection');
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+
+    return () => {
+      off?.();
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
   const handleResetRequest = () => {
     setRequestDraft(createRequestDraft());
     setResponseState(null);
@@ -472,56 +722,85 @@ const App = () => {
   }, [settings.theme]);
 
   return (
-    <div className="app-shell">
-      <TopBar
-        version={appVersion}
-        theme={themeLabel}
-        onToggleSettings={() => setShowSettings(true)}
-        onNewRequest={handleResetRequest}
-        environments={environments}
-        activeEnvironmentId={activeEnvironmentId}
-        onEnvironmentChange={setActiveEnvironment}
-      />
-      <div className="main-layout">
-        <Sidebar
-          history={history}
-          onHistorySelect={handleHistorySelect}
-          onHistoryClear={clearHistory}
-          requestDraft={requestDraft}
-          onLoadRequestFromCollection={handleCollectionSelect}
-          bulkQueue={bulkQueue}
-          bulkResults={bulkResults}
-          onBulkAddCurrent={handleBulkAddCurrent}
-          onBulkRun={handleBulkRun}
-          onBulkClear={handleBulkClear}
-          onBulkRemove={handleBulkRemove}
-          isBulkRunning={isBulkRunning}
-        />
-        <div className="workspace">
-          <RequestBuilder
-            request={requestDraft}
-            isSending={isSending}
-            onSend={handleSend}
-            onCancel={handleCancel}
-            settings={settings}
-          />
-          <ResponseViewer response={responseState} />
-          <ConsolePanel logs={logs} onClear={handleClearLogs} />
+    <>
+      <div className={`splash-screen ${isBooting ? 'visible' : 'hidden'}`}>
+        <div className="splash-card">
+          <div className="splash-mark">QA</div>
+          <div className="splash-body">
+            <div className="splash-title">Quick API Client</div>
+            <div className="splash-subtitle">Warming up workbench…</div>
+            <div className="splash-progress">
+              <span className="bar" />
+            </div>
+          </div>
         </div>
       </div>
-      <SettingsPanel
-        open={showSettings}
-        settings={settings}
-        onClose={() => setShowSettings(false)}
-        onChange={updateSettings}
-        environments={environments}
-        activeEnvironmentId={activeEnvironmentId}
-        onAddEnvironment={(name) => useAppStore.getState().addEnvironment(name)}
-        onUpdateEnvironment={(id, patch) => useAppStore.getState().updateEnvironment(id, patch)}
-        onDeleteEnvironment={(id) => useAppStore.getState().deleteEnvironment(id)}
-        onSetActiveEnvironment={setActiveEnvironment}
-      />
-    </div>
+
+      <div className="app-shell">
+        {runtimeIssue ? (
+          <div className="runtime-banner">
+            <div>
+              <strong>Runtime issue:</strong> {runtimeIssue.message}
+            </div>
+            <button className="ghost" onClick={() => setRuntimeIssue(null)}>
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        <TopBar
+          version={appVersion}
+          theme={themeLabel}
+          onToggleSettings={() => setShowSettings(true)}
+          onNewRequest={handleResetRequest}
+          environments={environments}
+          activeEnvironmentId={activeEnvironmentId}
+          onEnvironmentChange={setActiveEnvironment}
+        />
+        <div className="main-layout">
+          <Sidebar
+            history={history}
+            onHistorySelect={handleHistorySelect}
+            onHistoryClear={clearHistory}
+            requestDraft={requestDraft}
+            onLoadRequestFromCollection={handleCollectionSelect}
+            bulkQueue={bulkQueue}
+            bulkResults={bulkResults}
+            onBulkAddCurrent={handleBulkAddCurrent}
+            onBulkRun={handleBulkRun}
+            onBulkClear={handleBulkClear}
+            onBulkRemove={handleBulkRemove}
+            isBulkRunning={isBulkRunning}
+          />
+          <div className="workspace">
+            <RequestBuilder
+              request={requestDraft}
+              isSending={isSending}
+              onSend={handleSend}
+              onCancel={handleCancel}
+              settings={settings}
+            />
+            <ResponseViewer response={responseState} />
+            <ConsolePanel logs={logs} onClear={handleClearLogs} />
+          </div>
+        </div>
+        <SettingsPanel
+          open={showSettings}
+          settings={settings}
+          onClose={() => setShowSettings(false)}
+          onChange={updateSettings}
+          environments={environments}
+          activeEnvironmentId={activeEnvironmentId}
+          onAddEnvironment={(name) => useAppStore.getState().addEnvironment(name)}
+          onUpdateEnvironment={(id, patch) => useAppStore.getState().updateEnvironment(id, patch)}
+          onDeleteEnvironment={(id) => useAppStore.getState().deleteEnvironment(id)}
+          onSetActiveEnvironment={setActiveEnvironment}
+          onClearCookies={clearCookies}
+          globalVariables={globalVariables}
+          onGlobalChange={setGlobalVariables}
+        />
+      </div>
+    </>
   );
 };
 

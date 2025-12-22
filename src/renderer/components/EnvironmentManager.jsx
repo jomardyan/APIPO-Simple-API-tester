@@ -6,9 +6,13 @@ const EnvironmentManager = ({
   onAdd,
   onUpdate,
   onDelete,
-  onSetActive
+  onSetActive,
+  globalVariables,
+  onGlobalChange
 }) => {
   const [newName, setNewName] = useState('');
+  const [globalNewKey, setGlobalNewKey] = useState('');
+  const [globalNewVal, setGlobalNewVal] = useState('');
 
   const addVariableRow = (env) => {
     const nextVars = [...(env.variables || []), { id: crypto.randomUUID?.() || Date.now(), key: '', value: '' }];
@@ -27,7 +31,70 @@ const EnvironmentManager = ({
 
   const updateName = (env, name) => onUpdate(env.id, { name });
 
+  const addGlobalRow = () => {
+    onGlobalChange([...(globalVariables || []), { id: crypto.randomUUID?.() || Date.now(), key: globalNewKey, value: globalNewVal }]);
+    setGlobalNewKey('');
+    setGlobalNewVal('');
+  };
+
+  const updateGlobalRow = (rowId, field, value) => {
+    onGlobalChange((globalVariables || []).map((row) => (row.id === rowId ? { ...row, [field]: value } : row)));
+  };
+
+  const removeGlobalRow = (rowId) => {
+    const next = (globalVariables || []).length === 1 ? globalVariables : (globalVariables || []).filter((row) => row.id !== rowId);
+    onGlobalChange(next);
+  };
+
   return (
+    <div className="section">
+      <div className="section-header">
+        <div>
+          <div className="section-title">Global Variables</div>
+          <div className="muted small">Available in all requests; overridden by environment values.</div>
+        </div>
+        <div className="row compact">
+          <input
+            type="text"
+            placeholder="KEY"
+            value={globalNewKey}
+            onChange={(e) => setGlobalNewKey(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="value"
+            value={globalNewVal}
+            onChange={(e) => setGlobalNewVal(e.target.value)}
+          />
+          <button className="ghost" type="button" onClick={addGlobalRow}>
+            Add
+          </button>
+        </div>
+      </div>
+
+      <div className="headers-grid">
+        {(globalVariables || []).map((row) => (
+          <div key={row.id} className="header-row">
+            <input
+              type="text"
+              placeholder="KEY"
+              value={row.key}
+              onChange={(e) => updateGlobalRow(row.id, 'key', e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="value"
+              value={row.value}
+              onChange={(e) => updateGlobalRow(row.id, 'value', e.target.value)}
+            />
+            <button className="icon-btn" type="button" onClick={() => removeGlobalRow(row.id)}>
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+
     <div className="section">
       <div className="section-header">
         <div>

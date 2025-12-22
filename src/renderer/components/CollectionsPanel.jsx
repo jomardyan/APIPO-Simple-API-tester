@@ -98,9 +98,12 @@ const CollectionsPanel = ({ requestDraft, onLoadRequest }) => {
 
   const handleExport = () => {
     const data = {
-      version: 1,
+      version: 2,
       exportedAt: Date.now(),
-      collections
+      collections,
+      environments: useAppStore.getState().environments,
+      globalVariables: useAppStore.getState().globalVariables,
+      history: useAppStore.getState().history.slice(0, 200)
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -122,6 +125,15 @@ const CollectionsPanel = ({ requestDraft, onLoadRequest }) => {
         const parsed = JSON.parse(reader.result);
         if (parsed?.collections && Array.isArray(parsed.collections)) {
           replaceCollections(parsed.collections);
+          if (parsed.environments) {
+            useAppStore.setState({ environments: parsed.environments });
+          }
+          if (parsed.globalVariables) {
+            useAppStore.getState().setGlobalVariables(parsed.globalVariables);
+          }
+          if (parsed.history) {
+            useAppStore.setState({ history: parsed.history });
+          }
           setSelectedCollection(parsed.collections[0]?.id || '');
           setSelectedFolder('');
         } else if (parsed?.item) {

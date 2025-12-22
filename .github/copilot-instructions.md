@@ -1,7 +1,7 @@
 # Copilot Instructions for APIPO Quick API Client Desktop
 
 ## Project Overview
-This is an Electron desktop application for testing REST APIs—a cross-platform alternative to Postman. The application enables developers to build HTTP requests, manage collections, view formatted responses, and handle authentication across Windows, macOS, and Linux.
+This is an Electron desktop application for testing APIs—a cross-platform alternative to Postman. The application enables developers to build HTTP/GraphQL requests, run WebSocket/SSE sessions, manage collections, view formatted responses/events, and handle authentication across Windows, macOS, and Linux.
 
 **Key Design Principle**: Prioritize user productivity for API developers through a responsive, feature-rich desktop experience without browser limitations.
 
@@ -13,9 +13,9 @@ This is an Electron desktop application for testing REST APIs—a cross-platform
 - **Preload Scripts** (`src/preload/`): Secure IPC bridge between main and renderer processes
 
 ### Key Data Flows
-1. **Request Execution**: Renderer → Main (HTTP request) → Axios/fetch → Response → Renderer (display)
+1. **Request Execution**: Renderer → Preload → Main (`request:send` IPC, Axios with cookie jar + optional TLS client certs) → Response → Renderer (display)
 2. **Persistence**: Renderer (state) ↔ Main (SQLite/NeDB) → Disk
-3. **Environment Switching**: Collections contain environment variables; applied at request time before execution
+3. **Environment Switching**: Global variables merged with active environment variables; applied at request time before execution
 
 ## Critical Conventions
 
@@ -32,7 +32,7 @@ Use kebab-case with semantic prefixes:
 - **Hooks**: `useRequest()` for request state, `useCollections()` for storage
 
 ### State Management Pattern
-Use Zustand for global state (currently active collection, environment, theme). Local React state for temporary UI interactions (form inputs, modals).
+Use Zustand for global state (history, collections, environments, global variables, cookie jar, settings including cert config). Local React state for temporary UI interactions (form inputs, modals).
 
 ### Storage Schema Example
 ```json
@@ -73,8 +73,9 @@ npm run build:all              # Build for Win/Mac/Linux
 ## Integration Points & Dependencies
 
 ### HTTP Client Strategy
-- Use Axios with custom interceptor for request/response hooks
-- Support proxies via Node.js `http` module options
+- Use Axios (main) wrapped with tough-cookie jar support
+- Optional client cert/key/CA and rejectUnauthorized toggle
+- Support proxies via Node.js `http` module options (future)
 - Handle redirects (max 5) and timeouts (30s default, configurable)
 
 ### Authentication Implementations
@@ -89,8 +90,8 @@ npm run build:all              # Build for Win/Mac/Linux
 
 ### Import/Export Formats
 - **Postman Collections** (v2.1): Parse `items[]` array; map to internal request structure
-- **OpenAPI/Swagger**: Extract paths as requests; infer method/parameters from spec
-- **Export**: Generate JSON matching our schema; also support Postman format for interoperability
+- **OpenAPI/Swagger**: Extract paths as requests; infer method/parameters from spec (TODO)
+- **Export**: Generate JSON with collections, environments, global variables, history; also support Postman import for interoperability
 
 ## Project Structure Expectations
 
@@ -132,10 +133,10 @@ src/
 
 ### Request Execution
 1. Validate URL and headers in renderer before sending IPC
-2. Apply environment variables (substitute `${VAR}` in URL/headers/body)
-3. Build Axios config with auth, timeout, redirect settings
-4. Execute in main process; return `{ status, body, headers, duration, timestamp }`
-5. Store in history automatically; display in response viewer
+2. Apply variables (global + env) to URL/headers/body/GraphQL vars
+3. Build request config with auth, timeout, certs, cookies, redirect settings
+4. Execute in main process via `request:send`; return `{ status, body, headers, duration, error }`
+5. Store in history automatically (with protocol/env metadata); display in response viewer/events tab
 
 ### Error Handling
 - Network errors (ECONNREFUSED, timeout) → Show user-friendly message with suggestion (check URL, network)
@@ -144,6 +145,5 @@ src/
 
 ## Development Tips
 - Hot reload works on renderer changes; main process changes require app restart
-- Use `ng serve` or dev server for faster feedback during UI work
 - Test with large JSON payloads (>1MB) to ensure response viewer doesn't freeze
 - Keyboard shortcuts for power users: `Ctrl+Enter` to send, `Ctrl+S` to save, `Ctrl+L` to focus URL

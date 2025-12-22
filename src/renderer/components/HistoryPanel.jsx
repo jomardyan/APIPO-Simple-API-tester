@@ -42,14 +42,17 @@ const HistoryPanel = ({ history, onSelect, onClear }) => {
             type="button"
             onClick={() => onSelect(entry)}
           >
-            <div className={`pill ${entry.response?.error ? 'danger' : 'success'}`}>
-              {entry.request.method}
+            <div className="row compact" style={{ alignItems: 'center', gap: 8 }}>
+              <div className={`pill ${entry.response?.error ? 'danger' : 'success'}`}>
+                {entry.request.method}
+              </div>
+              <div className="pill muted">{(entry.protocol || entry.request.protocol || 'http').toUpperCase()}</div>
             </div>
             <div className="history-meta">
               <div className="history-url">{entry.request.url || 'Untitled request'}</div>
               <div className="muted">
-                {formatTime(entry.timestamp)} ·{' '}
-                {entry.response?.status ? entry.response.status : 'No status'}
+                {formatTime(entry.timestamp)} · {entry.response?.status ? entry.response.status : 'No status'} · {entry.response?.duration || 0}ms
+                {entry.environmentName ? ` · ${entry.environmentName}` : ''}
               </div>
             </div>
           </button>

@@ -9,12 +9,15 @@ export const HTTP_METHODS = [
 ];
 
 export const DEFAULT_REQUEST = {
+  protocol: 'http',
   method: 'GET',
   url: '',
   headers: [{ id: 'header-1', key: '', value: '' }],
   params: [{ id: 'param-1', key: '', value: '' }],
   bodyMode: 'json',
   body: '',
+  graphqlQuery: '',
+  graphqlVariables: '{\n  "input": {}\n}',
   formData: [{ id: 'form-1', key: '', value: '' }],
   preRequestScript: '',
   testScript: '',

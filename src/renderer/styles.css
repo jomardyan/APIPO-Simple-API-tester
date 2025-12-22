@@ -567,6 +567,106 @@ button:disabled {
   font-size: 13px;
 }
 
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 20% 20%, rgba(110, 231, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 80% 0%, rgba(62, 134, 255, 0.2), transparent 25%),
+    #050914;
+  z-index: 999;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.splash-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.splash-card {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
+  align-items: center;
+}
+
+.splash-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  display: grid;
+  place-items: center;
+  color: #041020;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.splash-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.splash-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.splash-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.splash-progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.splash-progress .bar {
+  display: block;
+  height: 100%;
+  width: 38%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  border-radius: 999px;
+  animation: slide 1.4s infinite ease-in-out;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-60%);
+  }
+  50% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(-60%);
+  }
+}
+
+.runtime-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(241, 91, 116, 0.4);
+  background: rgba(241, 91, 116, 0.1);
+  color: var(--text);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
 @media (max-width: 1100px) {
   .main-layout {
     grid-template-columns: 1fr;

@@ -4,7 +4,15 @@ import { randomId } from '../utils/id';
 
 const SUPPORTED_METHODS = HTTP_METHODS;
 
+const PROTOCOLS = [
+  { label: 'HTTP', value: 'http' },
+  { label: 'GraphQL', value: 'graphql' },
+  { label: 'WebSocket', value: 'websocket' },
+  { label: 'Server-Sent Events', value: 'sse' }
+];
+
 const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
+  const [protocol, setProtocol] = useState(request.protocol || 'http');
   const [method, setMethod] = useState(request.method || 'GET');
   const [url, setUrl] = useState(request.url || '');
   const [headers, setHeaders] = useState(request.headers || []);
@@ -12,11 +20,15 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
   const [body, setBody] = useState(request.body || '');
   const [bodyMode, setBodyMode] = useState(request.bodyMode || 'json');
   const [formData, setFormData] = useState(request.formData || [{ id: randomId(), key: '', value: '' }]);
+  const [urlEncoded, setUrlEncoded] = useState(request.urlEncoded || [{ id: randomId(), key: '', value: '' }]);
+  const [graphqlQuery, setGraphqlQuery] = useState(request.graphqlQuery || '');
+  const [graphqlVariables, setGraphqlVariables] = useState(request.graphqlVariables || '{\n  "input": {}\n}');
   const [auth, setAuth] = useState(request.auth || { type: 'none' });
   const [preRequestScript, setPreRequestScript] = useState(request.preRequestScript || '');
   const [testScript, setTestScript] = useState(request.testScript || '');
 
   useEffect(() => {
+    setProtocol(request.protocol || 'http');
     setMethod(request.method || 'GET');
     setUrl(request.url || '');
     setHeaders(request.headers?.length ? request.headers : [{ id: randomId(), key: '', value: '' }]);
@@ -26,6 +38,9 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
     setFormData(
       request.formData?.length ? request.formData : [{ id: randomId(), key: '', value: '' }]
     );
+    setUrlEncoded(request.urlEncoded?.length ? request.urlEncoded : [{ id: randomId(), key: '', value: '' }]);
+    setGraphqlQuery(request.graphqlQuery || '');
+    setGraphqlVariables(request.graphqlVariables || '{\n  "input": {}\n}');
     setAuth(request.auth || { type: 'none' });
     setPreRequestScript(request.preRequestScript || '');
     setTestScript(request.testScript || '');
@@ -71,6 +86,18 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
     setFormData((prev) => (prev.length === 1 ? prev : prev.filter((row) => row.id !== id)));
   };
 
+  const addUrlEncodedRow = () => {
+    setUrlEncoded((prev) => [...prev, { id: randomId(), key: '', value: '' }]);
+  };
+
+  const updateUrlEncodedRow = (id, field, value) => {
+    setUrlEncoded((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+  };
+
+  const removeUrlEncodedRow = (id) => {
+    setUrlEncoded((prev) => (prev.length === 1 ? prev : prev.filter((row) => row.id !== id)));
+  };
+
   const handleAuthChange = (field, value) => {
     setAuth((prev) => ({ ...prev, [field]: value }));
   };
@@ -78,12 +105,16 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
   const handleSubmit = (event) => {
     event.preventDefault();
     onSend({
+      protocol,
       method,
       url: url.trim(),
       headers,
       params,
       bodyMode,
       formData,
+      urlEncoded,
+      graphqlQuery,
+      graphqlVariables,
       body,
       auth,
       preRequestScript,
@@ -95,8 +126,8 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
     () =>
       `Timeout ${settings.timeout}ms · ${headers.filter((h) => h.key && h.value).length} headers · ${
         params.filter((p) => p.key && p.value).length
-      } params`,
-    [headers, params, settings.timeout]
+      } params · ${protocol.toUpperCase()}`,
+    [headers, params, protocol, settings.timeout]
   );
 
   return (
@@ -128,9 +159,23 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
 
       <form className="request-form" onSubmit={handleSubmit}>
         <div className="row">
+            <label className="stacked">
+              <span className="label">Protocol</span>
+              <select value={protocol} onChange={(e) => setProtocol(e.target.value)}>
+                {PROTOCOLS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           <label className="stacked">
             <span className="label">Method</span>
-            <select value={method} onChange={(e) => setMethod(e.target.value)}>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                disabled={protocol === 'websocket' || protocol === 'sse'}
+              >
               {SUPPORTED_METHODS.map(({ label, value }) => (
                 <option key={value} value={value}>
                   {label}
@@ -315,7 +360,7 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
           </div>
         </div>
 
-        {!['GET', 'HEAD'].includes(method) && (
+        {!['GET', 'HEAD'].includes(method) && protocol === 'http' && (
           <div className="section">
             <div className="section-header">
               <div>
@@ -351,6 +396,13 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
                 onClick={() => setBodyMode('formData')}
               >
                 form-data
+              </button>
+              <button
+                className={`ghost ${bodyMode === 'urlencoded' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setBodyMode('urlencoded')}
+              >
+                x-www-form-urlencoded
               </button>
             </div>
 
@@ -401,6 +453,68 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
                 </button>
               </div>
             )}
+
+            {bodyMode === 'urlencoded' && (
+              <div className="headers-grid">
+                {urlEncoded.map((row) => (
+                  <div key={row.id} className="header-row">
+                    <input
+                      type="text"
+                      placeholder="key"
+                      value={row.key}
+                      onChange={(e) => updateUrlEncodedRow(row.id, 'key', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="value"
+                      value={row.value}
+                      onChange={(e) => updateUrlEncodedRow(row.id, 'value', e.target.value)}
+                    />
+                    <button
+                      className="icon-btn"
+                      type="button"
+                      onClick={() => removeUrlEncodedRow(row.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button className="ghost" type="button" onClick={addUrlEncodedRow}>
+                  Add pair
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {protocol === 'graphql' && (
+          <div className="section">
+            <div className="section-header">
+              <div>
+                <div className="section-title">GraphQL</div>
+                <div className="muted">Query and variables sent as JSON</div>
+              </div>
+            </div>
+            <div className="section">
+              <div className="section-title">Query</div>
+              <textarea
+                rows={8}
+                value={graphqlQuery}
+                onChange={(e) => setGraphqlQuery(e.target.value)}
+                placeholder={`query Example($input: Input!) {\n  resource(input: $input) { id name }\n}`}
+                spellCheck={false}
+              />
+            </div>
+            <div className="section">
+              <div className="section-title">Variables</div>
+              <textarea
+                rows={6}
+                value={graphqlVariables}
+                onChange={(e) => setGraphqlVariables(e.target.value)}
+                placeholder={`{\n  "input": {"id": "123"}\n}`}
+                spellCheck={false}
+              />
+            </div>
           </div>
         )}
 
