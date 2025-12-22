@@ -10,7 +10,7 @@ function Show-Help {
     Write-Host "Quick API Client Desktop - Available Commands" -ForegroundColor Cyan
     Write-Host "=============================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "Development:" -ForegroundColor Yellow
+    Write-Host "Development: " -ForegroundColor Yellow
     Write-Host "  .\tasks.ps1 install          - Install all dependencies"
     Write-Host "  .\tasks.ps1 dev              - Start development environment with hot reload"
     Write-Host "  .\tasks.ps1 build            - Build production bundles (renderer + main)"
