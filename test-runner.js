@@ -16,7 +16,8 @@ async function runTests() {
             process.exit(1);
         }
 
-        const nodeArgs = ['--test', ...files, ...args];
+        // Node expects runtime flags (like coverage) before --test.
+        const nodeArgs = [...args, '--test', ...files];
         const child = spawn('node', nodeArgs, {
             stdio: 'inherit',
             shell: true
