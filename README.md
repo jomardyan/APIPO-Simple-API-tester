@@ -21,12 +21,21 @@ npm run test:coverage # run tests with coverage report
 
 ## Testing
 
-Tests are written using Node.js's built-in test runner and are visible in VS Code's Test Explorer:
+Tests are written using Node.js's built-in test runner and can be run using the following methods:
 
-- **Run tests**: Click the flask icon in the sidebar or use `Ctrl/Cmd+Shift+P` → "Test: Run All Tests"
-- **Debug tests**: Set breakpoints and click "Debug Test" in the gutter
-- **Watch mode**: Use the "Watch Tests" task from the command palette
-- **Coverage**: Run `npm run test:coverage` to see code coverage
+**Command Line:**
+```bash
+npm test              # run all tests once
+npm run test:watch    # run tests in watch mode (re-run on file changes)
+npm run test:coverage # run tests with coverage report
+```
+
+**VS Code Integration:**
+- **Run via Tasks**: Press `Ctrl/Cmd+Shift+P` → "Tasks: Run Task" → "Run All Tests"
+- **Debug Tests**: Press `F5` and select "Run All Tests" or "Debug Current Test File"
+- **Keyboard Shortcut**: `Ctrl/Cmd+Shift+B` to run the default test task
+
+**Note:** VS Code's native Test Explorer does not yet support Node.js's built-in test runner. Use the Tasks and Launch configurations above for the best experience.
 
 Test files are located in the `tests/` directory and follow the `*.test.js` naming pattern.
 

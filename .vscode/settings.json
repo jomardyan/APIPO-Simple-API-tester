@@ -29,5 +29,6 @@
   "eslint.validate": [
     "javascript",
     "javascriptreact"
-  ]
+  ],
+  "testing.automaticallyOpenTestResults": "neverOpen"
 }

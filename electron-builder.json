@@ -73,9 +73,11 @@
     "maintainer": "Quick API Client Team",
     "description": "Quick API Client - A cross-platform API testing tool",
     "desktop": {
-      "Name": "Quick API Client",
-      "Type": "Application",
-      "Categories": "Development;Utility;"
+      "entry": {
+        "Name": "Quick API Client",
+        "Type": "Application",
+        "Categories": "Development;Utility;"
+      }
     }
   },
   "fileAssociations": [
