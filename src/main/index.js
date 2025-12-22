@@ -244,6 +244,11 @@ const buildHttpsAgent = (certConfig) => {
 };
 
 ipcMain.handle("request:send", async (_event, payload) => {
+  // Input validation
+  if (!payload || typeof payload !== "object") {
+    return { error: "Invalid payload" };
+  }
+
   const {
     url,
     method = "GET",
@@ -252,8 +257,38 @@ ipcMain.handle("request:send", async (_event, payload) => {
     timeout = 15000,
     certConfig,
     withCredentials = true,
-  } = payload || {};
-  if (!url) return { error: "Missing URL" };
+  } = payload;
+
+  if (!url || typeof url !== "string") {
+    return { error: "Missing or invalid URL" };
+  }
+
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch (error) {
+    return { error: "Invalid URL format" };
+  }
+
+  // Validate method
+  const validMethods = [
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "PATCH",
+    "HEAD",
+    "OPTIONS",
+  ];
+  if (!validMethods.includes(method.toUpperCase())) {
+    return { error: "Invalid HTTP method" };
+  }
+
+  // Validate timeout
+  if (typeof timeout !== "number" || timeout < 0 || timeout > 300000) {
+    return { error: "Invalid timeout (must be 0-300000ms)" };
+  }
+
   const started = Date.now();
   try {
     // If using custom certs, don't use the cookie jar wrapper (incompatible)

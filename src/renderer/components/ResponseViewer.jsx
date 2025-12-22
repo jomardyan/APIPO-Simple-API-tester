@@ -15,7 +15,14 @@ const statusTone = (status) => {
 
 const pretty = (data) => {
   if (data === null || data === undefined) return "";
-  if (typeof data === "string") return data;
+  if (typeof data === "string") {
+    try {
+      const parsed = JSON.parse(data);
+      return JSON.stringify(parsed, null, 2);
+    } catch (_error) {
+      return data;
+    }
+  }
   try {
     return JSON.stringify(data, null, 2);
   } catch (error) {
@@ -47,10 +54,6 @@ const ResponseViewer = ({ response }) => {
   useEffect(() => {
     setTab("body");
     setShowRaw(false);
-  }, [response]);
-
-  useEffect(() => {
-    setTab("body");
   }, [response]);
 
   const copyBody = async () => {
@@ -196,6 +199,8 @@ const ResponseViewer = ({ response }) => {
                   '"Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace',
                 fontSize: 13,
               }}
+              textareaClassName="code-editor-textarea"
+              preClassName="code-editor-pre"
               readOnly
             />
           </div>

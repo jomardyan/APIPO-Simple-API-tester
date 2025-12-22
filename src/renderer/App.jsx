@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import axios from "axios";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import RequestBuilder from "./components/RequestBuilder";
@@ -6,7 +6,14 @@ import ResponseViewer from "./components/ResponseViewer";
 import SettingsPanel from "./components/SettingsPanel";
 import TopBar from "./components/TopBar";
 import Sidebar from "./components/Sidebar";
-import { DEFAULT_REQUEST, THEMES } from "#shared/constants";
+import {
+  DEFAULT_REQUEST,
+  THEMES,
+  SPLASH_DURATION_MS,
+  WEBSOCKET_TIMEOUT_MS,
+  SSE_TIMEOUT_MS,
+  SSE_MAX_EVENTS,
+} from "#shared/constants";
 import { useAppStore } from "./store/useAppStore";
 import {
   buildCookieHeader,
@@ -76,6 +83,15 @@ const App = () => {
   const [runtimeIssue, setRuntimeIssue] = useState(null);
   const topBarRef = React.useRef(null);
 
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [abortController]);
+
   // Dynamically calculate settings drawer positioning
   useEffect(() => {
     const updateSettingsPosition = () => {
@@ -128,7 +144,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsBooting(false), 720);
+    const timer = setTimeout(() => setIsBooting(false), SPLASH_DURATION_MS);
     return () => clearTimeout(timer);
   }, []);
 
@@ -368,40 +384,43 @@ const App = () => {
       const events = [];
       const started = performance.now();
       let settled = false;
-      try {
-        const source = new EventSource(resolvedDraft.url);
-        const finish = (payload) => {
-          if (settled) return;
-          settled = true;
-          source.close();
-          const response = {
-            status: null,
-            statusText: "SSE stream",
-            data: "Event stream",
-            headers: {},
-            duration: Math.round(performance.now() - started),
-            error: payload?.error || null,
-            size: JSON.stringify(events).length,
-            assertions: runAssertions(
-              resolvedDraft.testScript,
-              payload,
-              envMap
-            ),
-            events,
-          };
-          if (setResponse) setResponseState(response);
-          if (storeHistory) {
-            addHistory({
-              id: randomId(),
-              timestamp: Date.now(),
-              request: cloneRequest(resolvedDraft),
-              response,
-            });
-          }
-          resolve(response);
-        };
+      let source = null;
+      let timer = null;
 
-        const timer = setTimeout(() => finish(), 6000);
+      const finish = (payload) => {
+        if (settled) return;
+        settled = true;
+
+        if (timer) clearTimeout(timer);
+        if (source) source.close();
+
+        const response = {
+          status: null,
+          statusText: "SSE stream",
+          data: "Event stream",
+          headers: {},
+          duration: Math.round(performance.now() - started),
+          error: payload?.error || null,
+          size: JSON.stringify(events).length,
+          assertions: runAssertions(resolvedDraft.testScript, payload, envMap),
+          events,
+        };
+        if (setResponse) setResponseState(response);
+        if (storeHistory) {
+          addHistory({
+            id: randomId(),
+            timestamp: Date.now(),
+            request: cloneRequest(resolvedDraft),
+            response,
+          });
+        }
+        resolve(response);
+      };
+
+      try {
+        source = new EventSource(resolvedDraft.url);
+        timer = setTimeout(() => finish(), settings.timeout || SSE_TIMEOUT_MS);
+
         source.onmessage = (event) => {
           events.push({
             id: randomId(),
@@ -409,16 +428,15 @@ const App = () => {
             data: event.data,
             time: Date.now(),
           });
-          if (events.length >= 8) {
-            clearTimeout(timer);
+          if (events.length >= SSE_MAX_EVENTS) {
             finish();
           }
         };
         source.onerror = () => {
-          clearTimeout(timer);
           finish({ error: "SSE error" });
         };
       } catch (error) {
+        if (timer) clearTimeout(timer);
         const response = {
           status: null,
           statusText: "SSE error",
@@ -449,39 +467,46 @@ const App = () => {
     new Promise((resolve) => {
       const started = performance.now();
       const events = [];
-      try {
-        const ws = new WebSocket(resolvedDraft.url);
-        const finish = (payload) => {
-          const response = {
-            status: null,
-            statusText: "WebSocket",
-            data: "WebSocket session",
-            headers: {},
-            duration: Math.round(performance.now() - started),
-            error: payload?.error || null,
-            size: JSON.stringify(events).length,
-            assertions: runAssertions(
-              resolvedDraft.testScript,
-              payload,
-              envMap
-            ),
-            events,
-          };
-          if (setResponse) setResponseState(response);
-          if (storeHistory)
-            addHistory({
-              id: randomId(),
-              timestamp: Date.now(),
-              request: cloneRequest(resolvedDraft),
-              response,
-            });
-          resolve(response);
-        };
+      let settled = false;
+      let ws = null;
+      let timer = null;
 
-        const timer = setTimeout(() => {
+      const finish = (payload) => {
+        if (settled) return;
+        settled = true;
+
+        if (timer) clearTimeout(timer);
+        if (ws && ws.readyState === WebSocket.OPEN) {
           ws.close();
+        }
+
+        const response = {
+          status: null,
+          statusText: "WebSocket",
+          data: "WebSocket session",
+          headers: {},
+          duration: Math.round(performance.now() - started),
+          error: payload?.error || null,
+          size: JSON.stringify(events).length,
+          assertions: runAssertions(resolvedDraft.testScript, payload, envMap),
+          events,
+        };
+        if (setResponse) setResponseState(response);
+        if (storeHistory)
+          addHistory({
+            id: randomId(),
+            timestamp: Date.now(),
+            request: cloneRequest(resolvedDraft),
+            response,
+          });
+        resolve(response);
+      };
+
+      try {
+        ws = new WebSocket(resolvedDraft.url);
+        timer = setTimeout(() => {
           finish();
-        }, 6000);
+        }, settings.timeout || WEBSOCKET_TIMEOUT_MS);
 
         ws.onmessage = (event) => {
           events.push({
@@ -493,15 +518,14 @@ const App = () => {
         };
 
         ws.onerror = (event) => {
-          clearTimeout(timer);
           finish({ error: event?.message || "WebSocket error" });
         };
 
         ws.onclose = () => {
-          clearTimeout(timer);
           finish();
         };
       } catch (error) {
+        if (timer) clearTimeout(timer);
         const response = {
           status: null,
           statusText: "WebSocket error",
@@ -536,50 +560,53 @@ const App = () => {
     return sendHttp(resolvedDraft, options);
   };
 
-  const handleSend = async (draft) => {
-    if (!draft.url || isSending) return;
-    const controller = new AbortController();
-    setAbortController(controller);
-    setIsSending(true);
-    setRequestDraft(draft);
-    const result = await sendRequest(draft, {
-      setResponse: true,
-      storeHistory: true,
-      signal: controller.signal,
-    });
-    if (result?.aborted) {
-      setResponseState({
-        status: null,
-        statusText: "Cancelled",
-        data: "Request cancelled",
-        headers: {},
-        duration: 0,
-        error: "Cancelled",
-        size: 0,
-        assertions: [],
+  const handleSend = useCallback(
+    async (draft) => {
+      if (!draft.url || isSending) return;
+      const controller = new AbortController();
+      setAbortController(controller);
+      setIsSending(true);
+      setRequestDraft(draft);
+      const result = await sendRequest(draft, {
+        setResponse: true,
+        storeHistory: true,
+        signal: controller.signal,
       });
-    }
-    setIsSending(false);
-    setAbortController(null);
-  };
+      if (result?.aborted) {
+        setResponseState({
+          status: null,
+          statusText: "Cancelled",
+          data: "Request cancelled",
+          headers: {},
+          duration: 0,
+          error: "Cancelled",
+          size: 0,
+          assertions: [],
+        });
+      }
+      setIsSending(false);
+      setAbortController(null);
+    },
+    [isSending, sendRequest]
+  );
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     abortController?.abort();
     setAbortController(null);
     setIsSending(false);
-  };
+  }, [abortController]);
 
-  const handleHistorySelect = (entry) => {
+  const handleHistorySelect = useCallback((entry) => {
     setRequestDraft(cloneRequest(entry.request));
     setResponseState(entry.response);
-  };
+  }, []);
 
-  const handleCollectionSelect = (entry) => {
+  const handleCollectionSelect = useCallback((entry) => {
     setRequestDraft(cloneRequest(entry.request));
     setResponseState(null);
-  };
+  }, []);
 
-  const handleBulkAddCurrent = () => {
+  const handleBulkAddCurrent = useCallback(() => {
     setBulkQueue((prev) => [
       ...prev,
       {
@@ -587,18 +614,18 @@ const App = () => {
         request: cloneRequest(requestDraft),
       },
     ]);
-  };
+  }, [requestDraft]);
 
-  const handleBulkRemove = (id) => {
+  const handleBulkRemove = useCallback((id) => {
     setBulkQueue((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const handleBulkClear = () => {
+  const handleBulkClear = useCallback(() => {
     setBulkQueue([]);
     setBulkResults([]);
-  };
+  }, []);
 
-  const handleBulkRun = async () => {
+  const handleBulkRun = useCallback(async () => {
     if (!bulkQueue.length) return;
     setIsBulkRunning(true);
     const results = [];
@@ -611,9 +638,9 @@ const App = () => {
     }
     setBulkResults(results);
     setIsBulkRunning(false);
-  };
+  }, [bulkQueue, sendRequest]);
 
-  const handleClearCookies = async () => {
+  const handleClearCookies = useCallback(async () => {
     resetCookieJar();
     try {
       if (typeof window !== "undefined" && window.quickApi?.clearCookies) {
@@ -622,7 +649,12 @@ const App = () => {
     } catch (_error) {
       // Handle error silently
     }
-  };
+  }, [resetCookieJar]);
+
+  const handleResetRequest = useCallback(() => {
+    setRequestDraft(createRequestDraft());
+    setResponseState(null);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = window.quickApi?.onAppEvent?.((event) => {
@@ -641,7 +673,13 @@ const App = () => {
     });
 
     return () => unsubscribe?.();
-  }, [requestDraft, isSending]);
+  }, [
+    requestDraft,
+    isSending,
+    handleSend,
+    handleBulkAddCurrent,
+    handleResetRequest,
+  ]);
 
   useEffect(() => {
     const handleKey = (event) => {
@@ -687,11 +725,6 @@ const App = () => {
       window.removeEventListener("unhandledrejection", handleRejection);
     };
   }, []);
-
-  const handleResetRequest = () => {
-    setRequestDraft(createRequestDraft());
-    setResponseState(null);
-  };
 
   const themeLabel = useMemo(() => {
     const current = settings.theme;

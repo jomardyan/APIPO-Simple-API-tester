@@ -1,10 +1,10 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { DEFAULT_REQUEST } from '#shared/constants';
-import { randomId } from '../utils/id.js';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { DEFAULT_REQUEST, MAX_HISTORY_ENTRIES } from "#shared/constants";
+import { randomId } from "../utils/id.js";
 
 const persistConfig = {
-  name: 'quick-api-client-store',
+  name: "quick-api-client-store",
   partialize: (state) => ({
     history: state.history,
     settings: state.settings,
@@ -12,8 +12,8 @@ const persistConfig = {
     environments: state.environments,
     globalVariables: state.globalVariables,
     activeEnvironmentId: state.activeEnvironmentId,
-    cookieJar: state.cookieJar
-  })
+    cookieJar: state.cookieJar,
+  }),
 };
 
 export const useAppStore = create(
@@ -23,39 +23,39 @@ export const useAppStore = create(
       collections: [],
       environments: [
         {
-          id: 'env-local',
-          name: 'Local',
+          id: "env-local",
+          name: "Local",
           variables: [
-            { id: randomId(), key: 'HOST', value: 'http://localhost:3000' },
-            { id: randomId(), key: 'TOKEN', value: 'dev-token' }
-          ]
-        }
+            { id: randomId(), key: "HOST", value: "http://localhost:3000" },
+            { id: randomId(), key: "TOKEN", value: "dev-token" },
+          ],
+        },
       ],
       globalVariables: [
-        { id: randomId(), key: 'ORG', value: 'acme' },
-        { id: randomId(), key: 'REGION', value: 'us-east-1' }
+        { id: randomId(), key: "ORG", value: "acme" },
+        { id: randomId(), key: "REGION", value: "us-east-1" },
       ],
-      activeEnvironmentId: 'env-local',
+      activeEnvironmentId: "env-local",
       settings: {
-        theme: 'system',
+        theme: "system",
         timeout: 15000,
         withCredentials: true,
         certConfig: {
-          clientCertPath: '',
-          clientKeyPath: '',
-          caPath: '',
-          rejectUnauthorized: true
-        }
+          clientCertPath: "",
+          clientKeyPath: "",
+          caPath: "",
+          rejectUnauthorized: true,
+        },
       },
       cookieJar: {},
       addHistory: (entry) => {
-        const next = [entry, ...get().history].slice(0, 50);
+        const next = [entry, ...get().history].slice(0, MAX_HISTORY_ENTRIES);
         set({ history: next });
       },
       clearHistory: () => set({ history: [] }),
       updateSettings: (patch) =>
         set((state) => ({
-          settings: { ...state.settings, ...patch }
+          settings: { ...state.settings, ...patch },
         })),
       setGlobalVariables: (variables) => {
         if (!Array.isArray(variables)) return;
@@ -80,7 +80,7 @@ export const useAppStore = create(
           id: id || randomId(),
           name,
           folders: [],
-          requests: []
+          requests: [],
         };
         set((state) => ({ collections: [collection, ...state.collections] }));
       },
@@ -89,18 +89,24 @@ export const useAppStore = create(
         set((state) => ({
           collections: state.collections.map((col) =>
             col.id === collectionId
-              ? { ...col, folders: [{ id: randomId(), name: folderName, requests: [] }, ...col.folders] }
+              ? {
+                  ...col,
+                  folders: [
+                    { id: randomId(), name: folderName, requests: [] },
+                    ...col.folders,
+                  ],
+                }
               : col
-          )
+          ),
         }));
       },
       saveRequestToCollection: ({ collectionId, folderId, request, label }) => {
         if (!collectionId || !request) return;
         const entry = {
           id: randomId(),
-          label: label || request.url || 'Untitled request',
+          label: label || request.url || "Untitled request",
           request,
-          createdAt: Date.now()
+          createdAt: Date.now(),
         };
         set((state) => ({
           collections: state.collections.map((col) => {
@@ -112,39 +118,44 @@ export const useAppStore = create(
                   folder.id === folderId
                     ? { ...folder, requests: [entry, ...folder.requests] }
                     : folder
-                )
+                ),
               };
             }
             return { ...col, requests: [entry, ...col.requests] };
-          })
+          }),
         }));
       },
-      replaceCollections: (collections) => set({ collections })
-      ,
+      replaceCollections: (collections) => set({ collections }),
       addEnvironment: (name) => {
         if (!name) return;
-        const env = { id: randomId(), name, variables: [{ id: randomId(), key: '', value: '' }] };
+        const env = {
+          id: randomId(),
+          name,
+          variables: [{ id: randomId(), key: "", value: "" }],
+        };
         set((state) => ({
           environments: [env, ...state.environments],
-          activeEnvironmentId: state.activeEnvironmentId || env.id
+          activeEnvironmentId: state.activeEnvironmentId || env.id,
         }));
       },
       updateEnvironment: (envId, patch) => {
         set((state) => ({
           environments: state.environments.map((env) =>
             env.id === envId ? { ...env, ...patch } : env
-          )
+          ),
         }));
       },
       deleteEnvironment: (envId) => {
         set((state) => {
           const next = state.environments.filter((env) => env.id !== envId);
           const active =
-            state.activeEnvironmentId === envId ? next[0]?.id || '' : state.activeEnvironmentId;
+            state.activeEnvironmentId === envId
+              ? next[0]?.id || ""
+              : state.activeEnvironmentId;
           return { environments: next, activeEnvironmentId: active };
         });
       },
-      setActiveEnvironment: (envId) => set({ activeEnvironmentId: envId })
+      setActiveEnvironment: (envId) => set({ activeEnvironmentId: envId }),
     }),
     persistConfig
   )

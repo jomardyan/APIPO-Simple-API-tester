@@ -501,6 +501,7 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
                     fontSize: 13,
                   }}
                   textareaClassName="code-editor-textarea"
+                  preClassName="code-editor-pre"
                   placeholder={
                     bodyMode === "json"
                       ? '{\n  "message": "Hello API"\n}'
@@ -610,6 +611,8 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
                       '"Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace',
                     fontSize: 13,
                   }}
+                  textareaClassName="code-editor-textarea"
+                  preClassName="code-editor-pre"
                 />
               </div>
             </div>
@@ -626,6 +629,8 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
                       '"Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace',
                     fontSize: 13,
                   }}
+                  textareaClassName="code-editor-textarea"
+                  preClassName="code-editor-pre"
                 />
               </div>
             </div>
@@ -654,6 +659,8 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
                     '"Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace',
                   fontSize: 13,
                 }}
+                textareaClassName="code-editor-textarea"
+                preClassName="code-editor-pre"
               />
             </div>
           </div>
@@ -677,6 +684,8 @@ const RequestBuilder = ({ request, onSend, onCancel, isSending, settings }) => {
                     '"Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace',
                   fontSize: 13,
                 }}
+                textareaClassName="code-editor-textarea"
+                preClassName="code-editor-pre"
               />
             </div>
           </div>

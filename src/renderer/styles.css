@@ -1,33 +1,57 @@
 :root {
   color-scheme: dark;
-  --bg: #080c1c;
-  --surface: #0f162e;
-  --surface-2: #111c38;
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #e9edf5;
-  --muted: #95a0b8;
-  --accent: #6ee7ff;
-  --accent-strong: #1ec8ff;
+  --bg: #050815;
+  --surface: #0c1226;
+  --surface-2: #111a33;
+  --border: rgba(255, 255, 255, 0.12);
+  --text: #eaf1ff;
+  --muted: #8ea4c7;
+  --accent: #6dd6ff;
+  --accent-strong: #21b4ff;
   --danger: #f15b74;
   --success: #4ade80;
   --warn: #fbbf24;
-  --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+  --shadow: 0 28px 70px rgba(0, 0, 0, 0.4);
+  --code-bg: #0a1022;
+  --code-border: rgba(255, 255, 255, 0.14);
+  --code-text: #eaf1ff;
+  --code-keyword: #7dd3fc;
+  --code-string: #b4f59c;
+  --code-number: #ffd69b;
+  --code-boolean: #fcbf6d;
+  --code-property: #9cd7ff;
+  --code-punctuation: #a7b8d3;
+  --code-operator: #9fb3d0;
+  --code-comment: #7d8baa;
+  --code-attr: #ffd69b;
   font-family: "Space Grotesk", "Spline Sans", "Segoe UI", sans-serif;
 }
 
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #edf1f9;
+  --bg: #e7f1ff;
   --surface: #ffffff;
-  --surface-2: #f4f6fb;
-  --border: rgba(0, 18, 51, 0.08);
-  --text: #0f172a;
-  --muted: #4b5566;
-  --accent: #0ea5e9;
-  --accent-strong: #0284c7;
-  --danger: #dc3545;
-  --success: #16a34a;
-  --warn: #f59e0b;
+  --surface-2: #f2f6ff;
+  --border: rgba(10, 40, 120, 0.16);
+  --text: #0a1b33;
+  --muted: #3a4a66;
+  --accent: #0fa5f5;
+  --accent-strong: #0a7dd4;
+  --danger: #d62548;
+  --success: #0f9d58;
+  --warn: #d98600;
+  --code-bg: #f6f8ff;
+  --code-border: rgba(10, 40, 120, 0.2);
+  --code-text: #0a1b33;
+  --code-keyword: #0f8bd8;
+  --code-string: #1f8a3f;
+  --code-number: #b05800;
+  --code-boolean: #b04800;
+  --code-property: #0f5fa8;
+  --code-punctuation: #5b6a85;
+  --code-operator: #5b6a85;
+  --code-comment: #6d7d99;
+  --code-attr: #b05800;
 }
 
 * {
@@ -45,6 +69,16 @@ body {
     var(--bg);
   color: var(--text);
   overflow: hidden;
+}
+
+[data-theme="light"] body {
+  background: radial-gradient(
+      circle at 18% 18%,
+      rgba(14, 165, 233, 0.12),
+      transparent 32%
+    ),
+    radial-gradient(circle at 78% 6%, rgba(4, 116, 212, 0.12), transparent 30%),
+    linear-gradient(145deg, #f7faff 0%, #eaf1ff 50%, #fdfdff 100%);
 }
 
 #root {
@@ -442,16 +476,28 @@ textarea {
 .editor-container {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #050914;
+  background: var(--code-bg);
   min-height: 150px;
   overflow: hidden;
   font-family: "Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace;
   font-size: 13px;
+  color: var(--code-text);
 }
 
+/* Keep the textarea transparent so the highlighted layer shows through. */
+.editor-container .code-editor-textarea,
+.editor-container .npm__react-simple-code-editor__textarea {
+  background: transparent !important;
+  color: var(--code-text);
+  -webkit-text-fill-color: transparent !important;
+  caret-color: var(--code-text) !important;
+}
+
+.editor-container .code-editor-pre,
 .editor-container pre,
 .editor-container code {
   background: transparent !important;
+  color: var(--code-text);
   text-shadow: none !important;
   font-family: "Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace !important;
 }
@@ -635,8 +681,8 @@ textarea {
 }
 
 .code-block {
-  background: #050914;
-  border: 1px solid var(--border);
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
   border-radius: 12px;
   padding: 10px;
   overflow: auto;
@@ -644,6 +690,75 @@ textarea {
   font-family: "Berkeley Mono", "SFMono-Regular", Consolas, Menlo, monospace;
   font-size: 12.5px;
   line-height: 1.45;
+  color: var(--text);
+}
+
+.code-block code,
+.code-block pre {
+  background: var(--code-bg) !important;
+  color: var(--code-text) !important;
+}
+
+.editor-container .token,
+.code-block .token {
+  color: var(--code-text) !important;
+}
+
+.editor-container .token.keyword,
+.code-block .token.keyword {
+  color: var(--code-keyword) !important;
+}
+
+.editor-container .token.string,
+.editor-container .token.char,
+.code-block .token.string,
+.code-block .token.char {
+  color: var(--code-string) !important;
+}
+
+.editor-container .token.number,
+.editor-container .token.constant,
+.code-block .token.number,
+.code-block .token.constant {
+  color: var(--code-number) !important;
+}
+
+.editor-container .token.boolean,
+.code-block .token.boolean {
+  color: var(--code-boolean) !important;
+}
+
+.editor-container .token.property,
+.editor-container .token.attr-name,
+.code-block .token.property,
+.code-block .token.attr-name {
+  color: var(--code-property) !important;
+}
+
+.editor-container .token.punctuation,
+.code-block .token.punctuation {
+  color: var(--code-punctuation) !important;
+}
+
+.editor-container .token.operator,
+.code-block .token.operator {
+  color: var(--code-operator) !important;
+}
+
+.editor-container .token.comment,
+.editor-container .token.prolog,
+.editor-container .token.doctype,
+.editor-container .token.cdata,
+.code-block .token.comment,
+.code-block .token.prolog,
+.code-block .token.doctype,
+.code-block .token.cdata {
+  color: var(--code-comment) !important;
+}
+
+.editor-container .token.attr-value,
+.code-block .token.attr-value {
+  color: var(--code-attr) !important;
 }
 
 .danger-text {
@@ -658,6 +773,29 @@ textarea {
   border-radius: 14px;
   border: 1px dashed var(--border);
   background: var(--surface-2);
+}
+
+.error-boundary-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.error-boundary-content {
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
 }
 
 .settings-overlay {
@@ -757,8 +895,8 @@ button:disabled {
 }
 
 .console-body {
-  background: #050914;
-  border: 1px solid var(--border);
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
   border-radius: 12px;
   padding: 10px;
   /* min-height: 100px; Removed min-height */
