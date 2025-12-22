@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_REQUEST } from '#shared/constants';
-import { randomId } from '../utils/id';
+import { randomId } from '../utils/id.js';
 
 const persistConfig = {
   name: 'quick-api-client-store',

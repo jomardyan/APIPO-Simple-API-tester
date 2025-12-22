@@ -9,6 +9,21 @@ import ConsolePanel from './components/ConsolePanel';
 import { DEFAULT_REQUEST, THEMES } from '#shared/constants';
 import { useAppStore } from './store/useAppStore';
 import { randomId } from './utils/id';
+import {
+  buildCookieHeader,
+  buildUrlWithParams,
+  cloneRequest,
+  hostnameFromUrl,
+  parseHeaders,
+  parseParams,
+  parseSetCookies,
+  prettifyData,
+  runAssertions,
+  runPreRequestScript,
+  substituteTemplate,
+  toEnvMap,
+  withAuth
+} from './utils/request';
 
 const createRequestDraft = () => ({
   ...DEFAULT_REQUEST,
@@ -18,45 +33,10 @@ const createRequestDraft = () => ({
   auth: { ...DEFAULT_REQUEST.auth }
 });
 
-const parseHeaders = (rows = []) =>
-  rows.reduce((acc, row) => {
-    if (row.key && row.value) {
-      acc[row.key] = row.value;
-    }
-    return acc;
-  }, {});
-
-const parseParams = (rows = []) => rows.filter((row) => row.key && row.value);
-
-const prettifyData = (payload) => {
-  if (!payload) return '';
-  if (typeof payload === 'string') return payload;
-  try {
-    return JSON.stringify(payload, null, 2);
-  } catch (err) {
-    return String(payload);
-  }
-};
-
-const cloneRequest = (request) => JSON.parse(JSON.stringify(request));
-
 const applyTheme = (theme) => {
   const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
   const resolved = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme;
   document.documentElement.dataset.theme = resolved;
-};
-
-const toEnvMap = (env) =>
-  (env?.variables || []).reduce((acc, variable) => {
-    if (variable.key) acc[variable.key] = variable.value;
-    return acc;
-  }, {});
-
-const substituteTemplate = (value, envMap) => {
-  if (!value || typeof value !== 'string') return value;
-  return value.replace(/{{\s*([\w.-]+)\s*}}/g, (_match, key) =>
-    Object.prototype.hasOwnProperty.call(envMap, key) ? envMap[key] : `{{${key}}}`
-  );
 };
 
 const App = () => {
@@ -148,36 +128,8 @@ const App = () => {
     resolved.graphqlVariables = substituteTemplate(resolved.graphqlVariables, mergedMap);
     return resolved;
   };
-
-
   const addLog = (type, message) =>
     setLogs((prev) => [{ id: randomId(), type, message, timestamp: Date.now() }, ...prev].slice(0, 200));
-
-  const hostnameFromUrl = (raw) => {
-    try {
-      return new URL(raw).hostname;
-    } catch (_error) {
-      return '';
-    }
-  };
-
-  const parseSetCookies = (value) => {
-    const list = Array.isArray(value) ? value : [value];
-    return list.reduce((acc, cookieStr) => {
-      if (!cookieStr) return acc;
-      const [pair] = cookieStr.split(';');
-      const [name, ...rest] = pair.split('=');
-      if (!name) return acc;
-      acc[name.trim()] = rest.join('=').trim();
-      return acc;
-    }, {});
-  };
-
-  const buildCookieHeader = (host) => {
-    if (!host || !cookieJar?.[host]) return '';
-    const entries = Object.entries(cookieJar[host]);
-    return entries.map(([k, v]) => `${k}=${v}`).join('; ');
-  };
 
   const notifyRuntimeIssue = (message) => {
     if (!message) return;
@@ -204,108 +156,6 @@ const App = () => {
     return client;
   }, []);
 
-  const buildUrlWithParams = (baseUrl, params) => {
-    if (!params?.length) return baseUrl;
-    try {
-      const url = new URL(baseUrl);
-      params.forEach((p) => url.searchParams.append(p.key, p.value));
-      return url.toString();
-    } catch (error) {
-      const qs = params.map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`);
-      const joiner = baseUrl.includes('?') ? '&' : '?';
-      return `${baseUrl}${joiner}${qs.join('&')}`;
-    }
-  };
-
-  const runPreRequestScript = (script, base) => {
-    if (!script?.trim()) return base;
-    const working = {
-      headers: { ...base.headers },
-      params: [...base.params],
-      body: base.body,
-      formData: base.formData ? [...base.formData] : []
-    };
-    const ctx = {
-      env: envMap,
-      headers: working.headers,
-      params: working.params,
-      body: working.body,
-      setHeader: (key, value) => {
-        if (!key) return;
-        working.headers[key] = value;
-      },
-      setQuery: (key, value) => {
-        if (!key) return;
-        working.params.push({ key, value });
-      },
-      setBody: (next) => {
-        working.body = next;
-      },
-      setFormField: (key, value) => {
-        working.formData.push({ key, value });
-      },
-      log: (...args) => console.log('[PreRequest]', ...args)
-    };
-
-    try {
-      // eslint-disable-next-line no-new-func
-      const fn = new Function('ctx', script);
-      fn(ctx);
-    } catch (error) {
-      console.error('Pre-request script error', error);
-    }
-
-    return working;
-  };
-
-  const runAssertions = (script, response) => {
-    if (!script?.trim()) return [];
-    const assertions = [];
-    const assert = (condition, message) =>
-      assertions.push({ id: randomId(), ok: !!condition, message: message || 'Assertion' });
-
-    try {
-      // eslint-disable-next-line no-new-func
-      const fn = new Function('ctx', script);
-      fn({ response, assert, env: envMap });
-    } catch (error) {
-      assertions.push({ id: randomId(), ok: false, message: error.message });
-    }
-    return assertions;
-  };
-
-  const withAuth = (draftHeaders, draftParams, auth) => {
-    const headers = { ...draftHeaders };
-    let params = [...draftParams];
-    switch (auth?.type) {
-      case 'bearer':
-        if (auth.token) headers.Authorization = `Bearer ${auth.token}`;
-        break;
-      case 'oauth2':
-        if (auth.oauthToken) headers.Authorization = `Bearer ${auth.oauthToken}`;
-        break;
-      case 'basic': {
-        if (typeof btoa !== 'undefined') {
-          const encoded = btoa(`${auth.username || ''}:${auth.password || ''}`);
-          headers.Authorization = `Basic ${encoded}`;
-        }
-        break;
-      }
-      case 'apiKey':
-        if (auth.apiKeyKey && auth.apiKeyValue) {
-          if (auth.apiKeyAddTo === 'query') {
-            params = [...params, { key: auth.apiKeyKey, value: auth.apiKeyValue }];
-          } else {
-            headers[auth.apiKeyKey] = auth.apiKeyValue;
-          }
-        }
-        break;
-      default:
-        break;
-    }
-    return { headers, params };
-  };
-
   const sendHttp = async (resolvedDraft, { setResponse = true, storeHistory = true, signal } = {}) => {
     const started = performance.now();
     const headerMap = parseHeaders(resolvedDraft.headers);
@@ -316,10 +166,10 @@ const App = () => {
       params,
       body: resolvedDraft.body,
       formData: resolvedDraft.formData
-    });
+    }, envMap);
     const targetUrl = buildUrlWithParams(resolvedDraft.url, scripted.params);
     const host = hostnameFromUrl(targetUrl);
-    const cookieHeader = buildCookieHeader(host);
+    const cookieHeader = buildCookieHeader(host, cookieJar);
     if (cookieHeader && !scripted.headers.Cookie) {
       scripted.headers.Cookie = cookieHeader;
     }
@@ -399,7 +249,7 @@ const App = () => {
         duration,
         error: res.error || null,
         size: prettifyData(res.data).length,
-        assertions: runAssertions(resolvedDraft.testScript, res)
+        assertions: runAssertions(resolvedDraft.testScript, res, envMap)
       };
 
       const setCookieHeader = res.headers?.['set-cookie'] || res.headers?.['Set-Cookie'];
@@ -421,7 +271,7 @@ const App = () => {
         duration,
         error: error.message,
         size: prettifyData(res?.data ?? error.message).length,
-        assertions: runAssertions(resolvedDraft.testScript, res || error)
+        assertions: runAssertions(resolvedDraft.testScript, res || error, envMap)
       };
     }
 
@@ -467,7 +317,7 @@ const App = () => {
             duration: Math.round(performance.now() - started),
             error: payload?.error || null,
             size: JSON.stringify(events).length,
-            assertions: runAssertions(resolvedDraft.testScript, payload),
+            assertions: runAssertions(resolvedDraft.testScript, payload, envMap),
             events
           };
           if (setResponse) setResponseState(response);
@@ -498,7 +348,7 @@ const App = () => {
           duration: Math.round(performance.now() - started),
           error: error.message,
           size: 0,
-          assertions: runAssertions(resolvedDraft.testScript, error),
+          assertions: runAssertions(resolvedDraft.testScript, error, envMap),
           events
         };
         if (setResponse) setResponseState(response);
@@ -522,7 +372,7 @@ const App = () => {
             duration: Math.round(performance.now() - started),
             error: payload?.error || null,
             size: JSON.stringify(events).length,
-            assertions: runAssertions(resolvedDraft.testScript, payload),
+            assertions: runAssertions(resolvedDraft.testScript, payload, envMap),
             events
           };
           if (setResponse) setResponseState(response);
@@ -557,7 +407,7 @@ const App = () => {
           duration: Math.round(performance.now() - started),
           error: error.message,
           size: 0,
-          assertions: runAssertions(resolvedDraft.testScript, error),
+          assertions: runAssertions(resolvedDraft.testScript, error, envMap),
           events
         };
         if (setResponse) setResponseState(response);
