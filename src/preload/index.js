@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('quickApi', {
     ipcRenderer.on('app-error', listener);
     return () => ipcRenderer.removeListener('app-error', listener);
   },
-  sendRequest: (payload) => ipcRenderer.invoke('request:send', payload)
+  sendRequest: (payload) => ipcRenderer.invoke('request:send', payload),
+  clearCookies: () => ipcRenderer.invoke('cookies:clear')
 });

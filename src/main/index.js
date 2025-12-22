@@ -230,11 +230,21 @@ const buildHttpsAgent = (certConfig) => {
 };
 
 ipcMain.handle('request:send', async (_event, payload) => {
-  const { url, method = 'GET', headers = {}, data, timeout = 15000, certConfig } = payload || {};
+  const {
+    url,
+    method = 'GET',
+    headers = {},
+    data,
+    timeout = 15000,
+    certConfig,
+    withCredentials = true
+  } = payload || {};
   if (!url) return { error: 'Missing URL' };
   const started = Date.now();
   try {
-    const client = wrapAxios(axios.create({ jar, withCredentials: true }));
+    const client = withCredentials
+      ? wrapAxios(axios.create({ jar, withCredentials: true }))
+      : axios.create({ withCredentials: false });
     const res = await client.request({
       url,
       method,
@@ -264,6 +274,21 @@ ipcMain.handle('request:send', async (_event, payload) => {
       duration,
       error: error.message
     };
+  }
+});
+
+ipcMain.handle('cookies:clear', async () => {
+  try {
+    await new Promise((resolve, reject) => {
+      jar.removeAllCookies((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+    return { ok: true };
+  } catch (error) {
+    console.error('Cookie clear failed', error);
+    return { ok: false, error: error.message };
   }
 });
 

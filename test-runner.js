@@ -20,7 +20,7 @@ async function runTests() {
         const nodeArgs = [...args, '--test', ...files];
         const child = spawn('node', nodeArgs, {
             stdio: 'inherit',
-            shell: true
+            shell: false
         });
 
         child.on('exit', (code) => {

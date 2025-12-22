@@ -1,6 +1,7 @@
 # Quick API Client Desktop (MVP)
 
 [![Build Status](https://github.com/jomardyan/APIPO---Simple-API-tester/actions/workflows/build.yml/badge.svg)](https://github.com/jomardyan/APIPO---Simple-API-tester/actions)
+[![Tests](https://github.com/jomardyan/APIPO---Simple-API-tester/actions/workflows/test.yml/badge.svg)](https://github.com/jomardyan/APIPO---Simple-API-tester/actions/workflows/test.yml)
 [![Electron](https://img.shields.io/badge/Electron-39.2.7-blue)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-19.0-61dafb)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)

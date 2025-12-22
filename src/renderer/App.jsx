@@ -51,7 +51,7 @@ const App = () => {
     setActiveEnvironment,
     cookieJar,
     upsertCookies,
-    clearCookies,
+    clearCookies: resetCookieJar,
     globalVariables,
     setGlobalVariables
   } = useAppStore();
@@ -170,7 +170,7 @@ const App = () => {
     const targetUrl = buildUrlWithParams(resolvedDraft.url, scripted.params);
     const host = hostnameFromUrl(targetUrl);
     const cookieHeader = buildCookieHeader(host, cookieJar);
-    if (cookieHeader && !scripted.headers.Cookie) {
+    if (settings.withCredentials && cookieHeader && !scripted.headers.Cookie) {
       scripted.headers.Cookie = cookieHeader;
     }
 
@@ -222,12 +222,13 @@ const App = () => {
       const runViaMain = async () =>
         window.quickApi?.sendRequest?.({
           url: targetUrl,
-          method: methodToUse,
-          headers: scripted.headers,
-          data,
-          timeout: settings.timeout,
-          certConfig: settings.certConfig
-        });
+      method: methodToUse,
+      headers: scripted.headers,
+      data,
+      timeout: settings.timeout,
+      certConfig: settings.certConfig,
+      withCredentials: settings.withCredentials
+    });
 
       const res = (await runViaMain()) ??
         (await httpClient({
@@ -253,7 +254,7 @@ const App = () => {
       };
 
       const setCookieHeader = res.headers?.['set-cookie'] || res.headers?.['Set-Cookie'];
-      if (setCookieHeader && host) {
+      if (settings.withCredentials && setCookieHeader && host) {
         upsertCookies(host, parseSetCookies(setCookieHeader));
       }
     } catch (error) {
@@ -501,6 +502,20 @@ const App = () => {
     setIsBulkRunning(false);
   };
 
+  const handleClearCookies = async () => {
+    resetCookieJar();
+    try {
+      if (typeof window !== 'undefined' && window.quickApi?.clearCookies) {
+        const result = await window.quickApi.clearCookies();
+        if (result?.ok === false) {
+          addLog('ERR', 'Failed to clear Electron cookie jar');
+        }
+      }
+    } catch (_error) {
+      addLog('ERR', 'Failed to clear Electron cookie jar');
+    }
+  };
+
   const handleClearLogs = () => setLogs([]);
 
   useEffect(() => {
@@ -645,7 +660,7 @@ const App = () => {
           onUpdateEnvironment={(id, patch) => useAppStore.getState().updateEnvironment(id, patch)}
           onDeleteEnvironment={(id) => useAppStore.getState().deleteEnvironment(id)}
           onSetActiveEnvironment={setActiveEnvironment}
-          onClearCookies={clearCookies}
+          onClearCookies={handleClearCookies}
           globalVariables={globalVariables}
           onGlobalChange={setGlobalVariables}
         />
