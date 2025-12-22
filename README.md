@@ -31,6 +31,7 @@ npm run test:coverage # run tests with coverage report
 Tests are written using Node.js's built-in test runner and can be run using the following methods:
 
 **Command Line:**
+
 ```bash
 npm test              # run all tests once
 npm run test:watch    # run tests in watch mode (re-run on file changes)
@@ -38,6 +39,7 @@ npm run test:coverage # run tests with coverage report
 ```
 
 **VS Code Integration:**
+
 - **Run via Tasks**: Press `Ctrl/Cmd+Shift+P` → "Tasks: Run Task" → "Run All Tests"
 - **Debug Tests**: Press `F5` and select "Run All Tests" or "Debug Current Test File"
 - **Keyboard Shortcut**: `Ctrl/Cmd+Shift+B` to run the default test task
