@@ -20,6 +20,11 @@ function Show-Help {
     Write-Host "Running:" -ForegroundColor Yellow
     Write-Host "  .\tasks.ps1 start            - Run the packaged Electron app"
     Write-Host "  .\tasks.ps1 package          - Build and create installer package"
+    Write-Host "  .\tasks.ps1 build-msix       - Build MSIX package (x64 + arm64)"
+    Write-Host ""
+    Write-Host "Signing & Store:" -ForegroundColor Yellow
+    Write-Host "  .\tasks.ps1 create-cert      - Create a dev code-signing certificate (interactive)"
+    Write-Host "  .\tasks.ps1 export-pfx      - Export a certificate to a .pfx file for signing"
     Write-Host ""
     Write-Host "Testing & Quality:" -ForegroundColor Yellow
     Write-Host "  .\tasks.ps1 test             - Run tests once"
@@ -85,6 +90,37 @@ switch ($Command.ToLower()) {
     }
     "package" {
         Run-Command "npm run package"
+    }
+    "create-cert" {
+        # Create a development self-signed code-signing certificate
+        $pub = Read-Host "Enter publisher name (e.g. CN=YourPublisherName)"
+        if (-not $pub) { Write-Host "Publisher name is required" -ForegroundColor Red; exit 1 }
+        Write-Host "Creating self-signed code signing cert with publisher: $pub" -ForegroundColor Green
+        $cert = New-SelfSignedCertificate -Type CodeSigning -Subject $pub -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy Exportable
+        Write-Host "✓ Certificate created. Thumbprint: $($cert.Thumbprint)" -ForegroundColor Green
+        Write-Host "Run 'export-pfx' to export this cert to a .pfx file for signing or set CSC_LINK to a secure location." -ForegroundColor Yellow
+    }
+    "export-pfx" {
+        # Export a certificate to PFX (interactive)
+        $thumb = Read-Host "Enter certificate thumbprint (or press Enter to list latest)"
+        if (-not $thumb) {
+            $cert = Get-ChildItem Cert:\CurrentUser\My | Sort-Object NotAfter -Descending | Select-Object -First 1
+        } else {
+            $cert = Get-ChildItem Cert:\CurrentUser\My\$thumb
+        }
+        if (-not $cert) { Write-Host "Certificate not found" -ForegroundColor Red; exit 1 }
+        $out = Read-Host "Output file path (e.g. C:\temp\dev-cert.pfx)"
+        $pwd = Read-Host "PFX password (will be used as CSC_KEY_PASSWORD)" -AsSecureString
+        Export-PfxCertificate -Cert $cert -FilePath $out -Password $pwd
+        Write-Host "✓ Exported to $out" -ForegroundColor Green
+        Write-Host "Tip: set environment vars: `CSC_LINK` to the PFX (or a url) and `CSC_KEY_PASSWORD` to the password" -ForegroundColor Yellow
+    }
+    "build-msix" {
+        Run-Command "npm run build"
+        # Build MSIX (requires msix target in electron-builder.json and a certificate or Partner Center signing)
+        Run-Command "npx electron-builder --win --x64 --arm64"
+        Write-Host "✓ MSIX build finished (outputs in release/ by default)" -ForegroundColor Green
+        Write-Host "If unsigned, either use Partner Center to sign, or set CSC_LINK and CSC_KEY_PASSWORD to sign locally." -ForegroundColor Yellow
     }
     "clean" {
         Write-Host "Cleaning dist/ directory..." -ForegroundColor Yellow

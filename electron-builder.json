@@ -52,9 +52,19 @@
       {
         "target": "portable",
         "arch": ["x64"]
+      },
+      {
+        "target": "msix",
+        "arch": ["x64", "arm64"]
       }
     ],
     "artifactName": "${productName}-Setup-${version}.${ext}"
+  },
+  "msix": {
+    "displayName": "Quick API Client Desktop",
+    "publisher": "CN=YourPublisherName",
+    "identityName": "com.quickapiclient.desktop",
+    "assets": "assets"
   },
   "nsis": {
     "oneClick": false,

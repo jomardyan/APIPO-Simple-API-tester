@@ -99,6 +99,45 @@ Installers are created using electron-builder:
 - **macOS**: `.dmg` disk image
 - **Linux**: `.AppImage` or `.deb` packages
 
+### Microsoft Store / MSIX (Windows)
+You can produce an MSIX package suitable for Microsoft Store (Partner Center) submission.
+
+- Add `msix` as a target in `electron-builder.json` (already configured in this project).
+- To build an MSIX locally (unsigned or signed with a `.pfx`):
+
+```powershell
+# Build bundles and MSIX (x64 + arm64)
+npm run build:msix
+# or via the helper task
+.\tasks.ps1 build-msix
+```
+
+- To sign locally, export a code-signing `.pfx` and set environment variables:
+
+```powershell
+$env:CSC_LINK = "C:\path\to\your.pfx"
+$env:CSC_KEY_PASSWORD = "pfx-password"
+```
+
+- You can use the included PowerShell helper tasks to create a local dev cert and export it:
+
+```powershell
+.\tasks.ps1 create-cert
+.\tasks.ps1 export-pfx
+```
+
+- Test locally by enabling Developer Mode (Settings → For developers) and installing the MSIX with:
+
+```powershell
+Add-AppxPackage -Path .\release\YourApp.msix
+```
+
+- Run the Windows App Certification Kit (WACK) before uploading to Partner Center.
+
+- In Partner Center, either upload a signed package or upload unsigned and let Microsoft sign it during submission; ensure the `publisher` identity in `electron-builder.json` matches exactly the Partner Center publisher string.
+
+If you'd like, I can set your real Partner Center publisher name in `electron-builder.json` and add a folder with store assets (icons, screenshots) ready for upload.
+
 ### Running Tests
 ```bash
 npm test                  # Run unit tests with Node.js test runner
